@@ -39,4 +39,31 @@ public interface IForeignKey
     /// Gets the update action for the foreign key.
     /// </summary>
     ReferentialAction UpdateAction { get; }
+
+    /// <summary>
+    /// Gets the column mappings for the foreign key.
+    /// </summary>
+    IReadOnlyCollection<IForeignKeyColumnMapping> ColumnMappings { get; }
+
+    /// <summary>
+    /// Gets the delete behavior for the foreign key (legacy property).
+    /// </summary>
+    string DeleteBehavior { get; }
+
+    /// <summary>
+    /// Gets the update behavior for the foreign key (legacy property).
+    /// </summary>
+    string UpdateBehavior { get; }
+
+    /// <summary>
+    /// Adds a column to the foreign key.
+    /// </summary>
+    /// <param name="column">The column to add.</param>
+    void AddColumn(IColumn column);
+
+    /// <summary>
+    /// Adds a referenced column to the foreign key.
+    /// </summary>
+    /// <param name="column">The referenced column to add.</param>
+    void AddReferencedColumn(IColumn column);
 }

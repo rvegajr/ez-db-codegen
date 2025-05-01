@@ -49,4 +49,24 @@ public interface ITable
     /// Gets the history table name if this is a temporal table.
     /// </summary>
     string? HistoryTableName { get; }
+    
+    /// <summary>
+    /// Gets the mutable collection of columns in the table.
+    /// </summary>
+    IList<IColumn> MutableColumns { get; }
+    
+    /// <summary>
+    /// Gets the mutable collection of foreign keys in the table.
+    /// </summary>
+    IList<IForeignKey> MutableForeignKeys { get; }
+    
+    /// <summary>
+    /// Gets the mutable collection of indexes in the table.
+    /// </summary>
+    IList<IIndex> MutableIndexes { get; }
+    
+    /// <summary>
+    /// Gets the mutable collection of unique constraints in the table.
+    /// </summary>
+    IList<IUniqueConstraint> MutableUniqueConstraints { get; }
 }

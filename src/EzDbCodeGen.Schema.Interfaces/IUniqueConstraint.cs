@@ -24,4 +24,9 @@ public interface IUniqueConstraint
     /// Gets a value indicating whether the unique constraint is clustered.
     /// </summary>
     bool IsClustered { get; }
+    
+    /// <summary>
+    /// Gets the mutable collection of columns that make up the unique constraint.
+    /// </summary>
+    IList<IColumn> MutableColumns { get; }
 }

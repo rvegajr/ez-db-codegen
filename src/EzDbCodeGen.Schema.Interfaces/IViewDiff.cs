@@ -8,12 +8,12 @@ public interface IViewDiff
     /// <summary>
     /// Gets the original view.
     /// </summary>
-    IView Original { get; }
+    IView? Original { get; }
     
     /// <summary>
     /// Gets the new view.
     /// </summary>
-    IView New { get; }
+    IView? New { get; }
     
     /// <summary>
     /// Gets a value indicating whether the view has changed.

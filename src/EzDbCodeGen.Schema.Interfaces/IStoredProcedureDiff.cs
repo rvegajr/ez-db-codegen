@@ -8,12 +8,12 @@ public interface IStoredProcedureDiff
     /// <summary>
     /// Gets the original stored procedure.
     /// </summary>
-    IStoredProcedure Original { get; }
+    IStoredProcedure? Original { get; }
     
     /// <summary>
     /// Gets the new stored procedure.
     /// </summary>
-    IStoredProcedure New { get; }
+    IStoredProcedure? New { get; }
     
     /// <summary>
     /// Gets a value indicating whether the stored procedure has changed.

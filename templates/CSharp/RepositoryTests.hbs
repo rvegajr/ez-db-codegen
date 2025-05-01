@@ -1,0 +1,356 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using {{Options.Namespace}}.Repositories;
+
+namespace {{Options.Namespace}}.Tests
+{
+    /// <summary>
+    /// Unit tests for the {{pascalCase Name}}Repository class.
+    /// </summary>
+    public class {{pascalCase Name}}RepositoryTests
+    {
+        private readonly DbContextOptions<{{Options.ContextName}}> _options;
+        private readonly Mock<ILogger<{{pascalCase Name}}Repository>> _loggerMock;
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="{{pascalCase Name}}RepositoryTests"/> class.
+        /// </summary>
+        public {{pascalCase Name}}RepositoryTests()
+        {
+            _options = new DbContextOptionsBuilder<{{Options.ContextName}}>()
+                .UseInMemoryDatabase(databaseName: $"{{pascalCase Name}}Test_{Guid.NewGuid()}")
+                .Options;
+                
+            _loggerMock = new Mock<ILogger<{{pascalCase Name}}Repository>>();
+            
+            // Seed the database
+            using (var context = new {{Options.ContextName}}(_options))
+            {
+                SeedDatabase(context);
+            }
+        }
+        
+        /// <summary>
+        /// Seeds the in-memory database with test data.
+        /// </summary>
+        private void SeedDatabase({{Options.ContextName}} context)
+        {
+            // Add test entities
+            {{#if HasPrimaryKey}}
+            {{#if PrimaryKey.Columns.length eq 1}}
+            {{#if PrimaryKey.Columns.0.IsIdentity}}
+            // Primary key is auto-generated
+            {{else}}
+            // Primary key is not auto-generated
+            {{/if}}
+            {{else}}
+            // Composite primary key
+            {{/if}}
+            {{else}}
+            // No primary key
+            {{/if}}
+            
+            var testEntities = new List<{{pascalCase Name}}>
+            {
+                new {{pascalCase Name}}
+                {
+                    {{#each Columns}}
+                    {{#if IsPrimaryKey}}
+                    {{#if IsIdentity}}
+                    // {{pascalCase Name}} is auto-generated
+                    {{else}}
+                    {{pascalCase Name}} = {{getTestValue CSharpType 1}},
+                    {{/if}}
+                    {{else}}
+                    {{pascalCase Name}} = {{getTestValue CSharpType 1}},
+                    {{/if}}
+                    {{/each}}
+                },
+                new {{pascalCase Name}}
+                {
+                    {{#each Columns}}
+                    {{#if IsPrimaryKey}}
+                    {{#if IsIdentity}}
+                    // {{pascalCase Name}} is auto-generated
+                    {{else}}
+                    {{pascalCase Name}} = {{getTestValue CSharpType 2}},
+                    {{/if}}
+                    {{else}}
+                    {{pascalCase Name}} = {{getTestValue CSharpType 2}},
+                    {{/if}}
+                    {{/each}}
+                }
+            };
+            
+            context.{{pluralize (pascalCase Name)}}.AddRange(testEntities);
+            context.SaveChanges();
+        }
+        
+        /// <summary>
+        /// Tests that GetAllAsync returns all entities.
+        /// </summary>
+        [Fact]
+        public async Task GetAllAsync_ReturnsAllEntities()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            // Act
+            var result = await repository.GetAllAsync();
+            
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count);
+        }
+        
+        {{#if HasPrimaryKey}}
+        /// <summary>
+        /// Tests that GetByIdAsync returns the correct entity.
+        /// </summary>
+        [Fact]
+        public async Task GetByIdAsync_ReturnsCorrectEntity()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            {{#if PrimaryKey.Columns.length eq 1}}
+            // Get the first entity to find its ID
+            var firstEntity = await context.{{pluralize (pascalCase Name)}}.FirstAsync();
+            var idToFind = firstEntity.{{pascalCase PrimaryKey.Columns.0.Name}};
+            
+            // Act
+            var result = await repository.GetByIdAsync(idToFind);
+            
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(idToFind, result.{{pascalCase PrimaryKey.Columns.0.Name}});
+            {{else}}
+            // Get the first entity to find its composite key
+            var firstEntity = await context.{{pluralize (pascalCase Name)}}.FirstAsync();
+            {{#each PrimaryKey.Columns}}
+            var {{camelCase Name}} = firstEntity.{{pascalCase Name}};
+            {{/each}}
+            
+            // Act
+            var result = await repository.GetByIdAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{camelCase Name}}{{/each}});
+            
+            // Assert
+            Assert.NotNull(result);
+            {{#each PrimaryKey.Columns}}
+            Assert.Equal({{camelCase Name}}, result.{{pascalCase Name}});
+            {{/each}}
+            {{/if}}
+        }
+        {{/if}}
+        
+        /// <summary>
+        /// Tests that AddAsync adds a new entity.
+        /// </summary>
+        [Fact]
+        public async Task AddAsync_AddsNewEntity()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            var newEntity = new {{pascalCase Name}}
+            {
+                {{#each Columns}}
+                {{#if IsPrimaryKey}}
+                {{#if IsIdentity}}
+                // {{pascalCase Name}} is auto-generated
+                {{else}}
+                {{pascalCase Name}} = {{getTestValue CSharpType 3}},
+                {{/if}}
+                {{else}}
+                {{pascalCase Name}} = {{getTestValue CSharpType 3}},
+                {{/if}}
+                {{/each}}
+            };
+            
+            // Act
+            var result = await repository.AddAsync(newEntity);
+            
+            // Assert
+            Assert.NotNull(result);
+            
+            // Verify entity was added to the database
+            var entitiesCount = await context.{{pluralize (pascalCase Name)}}.CountAsync();
+            Assert.Equal(3, entitiesCount);
+        }
+        
+        /// <summary>
+        /// Tests that UpdateAsync updates an existing entity.
+        /// </summary>
+        [Fact]
+        public async Task UpdateAsync_UpdatesExistingEntity()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            // Get the first entity to update
+            var entityToUpdate = await context.{{pluralize (pascalCase Name)}}.FirstAsync();
+            
+            {{#each Columns}}
+            {{#if IsPrimaryKey}}
+            // Don't modify primary key
+            {{else}}
+            entityToUpdate.{{pascalCase Name}} = {{getTestValue CSharpType 4}};
+            {{/if}}
+            {{/each}}
+            
+            // Act
+            var result = await repository.UpdateAsync(entityToUpdate);
+            
+            // Assert
+            Assert.True(result);
+            
+            // Verify entity was updated in the database
+            {{#if HasPrimaryKey}}
+            {{#if PrimaryKey.Columns.length eq 1}}
+            var updatedEntity = await context.{{pluralize (pascalCase Name)}}.FindAsync(entityToUpdate.{{pascalCase PrimaryKey.Columns.0.Name}});
+            {{else}}
+            var updatedEntity = await context.{{pluralize (pascalCase Name)}}.FindAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}entityToUpdate.{{pascalCase Name}}{{/each}});
+            {{/if}}
+            {{else}}
+            var updatedEntity = await context.{{pluralize (pascalCase Name)}}.FirstAsync(e => 
+                {{#each Columns}}
+                {{#if @index}} && {{/if}}e.{{pascalCase Name}} == entityToUpdate.{{pascalCase Name}}
+                {{/each}});
+            {{/if}}
+            
+            Assert.NotNull(updatedEntity);
+            {{#each Columns}}
+            {{#unless IsPrimaryKey}}
+            Assert.Equal(entityToUpdate.{{pascalCase Name}}, updatedEntity.{{pascalCase Name}});
+            {{/unless}}
+            {{/each}}
+        }
+        
+        {{#if HasPrimaryKey}}
+        /// <summary>
+        /// Tests that DeleteAsync deletes an existing entity.
+        /// </summary>
+        [Fact]
+        public async Task DeleteAsync_DeletesExistingEntity()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            // Get the first entity to delete
+            var entityToDelete = await context.{{pluralize (pascalCase Name)}}.FirstAsync();
+            
+            {{#if PrimaryKey.Columns.length eq 1}}
+            var idToDelete = entityToDelete.{{pascalCase PrimaryKey.Columns.0.Name}};
+            
+            // Act
+            var result = await repository.DeleteAsync(idToDelete);
+            {{else}}
+            {{#each PrimaryKey.Columns}}
+            var {{camelCase Name}} = entityToDelete.{{pascalCase Name}};
+            {{/each}}
+            
+            // Act
+            var result = await repository.DeleteAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{camelCase Name}}{{/each}});
+            {{/if}}
+            
+            // Assert
+            Assert.True(result);
+            
+            // Verify entity was deleted from the database
+            var entitiesCount = await context.{{pluralize (pascalCase Name)}}.CountAsync();
+            Assert.Equal(1, entitiesCount);
+        }
+        {{else}}
+        /// <summary>
+        /// Tests that DeleteAsync deletes an existing entity.
+        /// </summary>
+        [Fact]
+        public async Task DeleteAsync_DeletesExistingEntity()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            // Get the first entity to delete
+            var entityToDelete = await context.{{pluralize (pascalCase Name)}}.FirstAsync();
+            
+            // Act
+            var result = await repository.DeleteAsync(entityToDelete);
+            
+            // Assert
+            Assert.True(result);
+            
+            // Verify entity was deleted from the database
+            var entitiesCount = await context.{{pluralize (pascalCase Name)}}.CountAsync();
+            Assert.Equal(1, entitiesCount);
+        }
+        {{/if}}
+        
+        /// <summary>
+        /// Tests that GetAllDtosAsync returns all entities as DTOs.
+        /// </summary>
+        [Fact]
+        public async Task GetAllDtosAsync_ReturnsAllDtos()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            // Act
+            var result = await repository.GetAllDtosAsync();
+            
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(2, result.Count);
+            Assert.IsType<{{pascalCase Name}}Dto>(result[0]);
+        }
+        
+        /// <summary>
+        /// Tests that AddFromDtoAsync adds a new entity from a DTO.
+        /// </summary>
+        [Fact]
+        public async Task AddFromDtoAsync_AddsNewEntityFromDto()
+        {
+            // Arrange
+            using var context = new {{Options.ContextName}}(_options);
+            var repository = new {{pascalCase Name}}Repository(context, _loggerMock.Object);
+            
+            var newDto = new {{pascalCase Name}}Dto
+            {
+                {{#each Columns}}
+                {{#if IsPrimaryKey}}
+                {{#if IsIdentity}}
+                // {{pascalCase Name}} is auto-generated
+                {{else}}
+                {{pascalCase Name}} = {{getTestValue CSharpType 5}},
+                {{/if}}
+                {{else}}
+                {{pascalCase Name}} = {{getTestValue CSharpType 5}},
+                {{/if}}
+                {{/each}}
+            };
+            
+            // Act
+            var result = await repository.AddFromDtoAsync(newDto);
+            
+            // Assert
+            Assert.NotNull(result);
+            Assert.IsType<{{pascalCase Name}}Dto>(result);
+            
+            // Verify entity was added to the database
+            var entitiesCount = await context.{{pluralize (pascalCase Name)}}.CountAsync();
+            Assert.Equal(3, entitiesCount);
+        }
+    }
+}

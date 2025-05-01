@@ -1,0 +1,28 @@
+{{!--
+ViewModel.hbs - Template for generating view models from database views
+This template leverages our robust templating helpers and our advanced relationship detection
+to create clean, well-documented view models.
+--}}
+{{#formatEz layout="standard"}}
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace {{namespace}}.Models.Views
+{
+    {{#docEz format="xml" description=(or view.Description (formatEz value=(string "View model representing the " view.Name " database view")))}}
+    [Table("{{view.Name}}", Schema = "{{view.Schema}}")]
+    public partial class {{formatEz case="pascal" value=view.Name}}ViewModel
+    {
+        {{#each columns}}
+        {{#docEz format="xml" description=(or description (formatEz value=(string "Gets or sets the " (formatEz case="pascal" value=name) " property")))}}
+        {{#if isRequired}}[Required]{{/if}}
+        {{#if maxLength}}[MaxLength({{maxLength}})]{{/if}}
+        {{#if columnName}}[Column("{{columnName}}")]{{/if}}
+        public {{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="pascal" value=name}} { get; set; }
+        
+        {{/each}}
+    }
+}
+{{/formatEz}}

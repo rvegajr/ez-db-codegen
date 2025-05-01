@@ -8,12 +8,12 @@ public interface IFunctionDiff
     /// <summary>
     /// Gets the original function.
     /// </summary>
-    IFunction Original { get; }
+    IFunction? Original { get; }
     
     /// <summary>
     /// Gets the new function.
     /// </summary>
-    IFunction New { get; }
+    IFunction? New { get; }
     
     /// <summary>
     /// Gets a value indicating whether the function has changed.

@@ -1,0 +1,349 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+{{#if Options.UseJsonSerialization}}
+using System.Text.Json.Serialization;
+{{/if}}
+{{#if Options.UseNewtonsoft}}
+using Newtonsoft.Json;
+{{/if}}
+{{#if Options.UseFluentApi}}
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+{{/if}}
+
+namespace {{Options.Namespace}}
+{
+    /// <summary>
+    /// Interface for the {{Name}} entity.
+    /// {{#if Description}}{{Description}}{{/if}}
+    /// </summary>
+    public interface I{{pascalCase Name}}
+    {
+        {{#each Columns}}
+        /// <summary>
+        /// {{#if Description}}{{Description}}{{else}}Gets or sets the {{Name}} property.{{/if}}
+        /// </summary>
+        {{CSharpType}} {{pascalCase Name}} { get; set; }
+        
+        {{/each}}
+    }
+
+    /// <summary>
+    /// DTO for the {{Name}} entity without navigation properties.
+    /// {{#if Description}}{{Description}}{{/if}}
+    /// </summary>
+    public class {{pascalCase Name}}Dto : I{{pascalCase Name}}
+    {
+        {{#each Columns}}
+        /// <summary>
+        /// {{#if Description}}{{Description}}{{else}}Gets or sets the {{Name}} property.{{/if}}
+        /// </summary>
+        {{#if Options.UseJsonSerialization}}
+        [JsonPropertyName("{{camelCase Name}}")]
+        {{/if}}
+        {{#if Options.UseNewtonsoft}}
+        [JsonProperty("{{camelCase Name}}")]
+        {{/if}}
+        public {{CSharpType}} {{pascalCase Name}} { get; set; }{{#if IsNullable}} = default;{{/if}}
+        
+        {{/each}}
+        
+        /// <summary>
+        /// Creates a new DTO from an entity.
+        /// </summary>
+        public static {{pascalCase Name}}Dto FromEntity({{pascalCase Name}} entity)
+        {
+            if (entity == null) return null;
+            
+            return new {{pascalCase Name}}Dto
+            {
+                {{#each Columns}}
+                {{pascalCase Name}} = entity.{{pascalCase Name}},
+                {{/each}}
+            };
+        }
+        
+        /// <summary>
+        /// Updates an entity from this DTO.
+        /// </summary>
+        public void UpdateEntity({{pascalCase Name}} entity)
+        {
+            if (entity == null) return;
+            
+            {{#each Columns}}
+            entity.{{pascalCase Name}} = {{pascalCase Name}};
+            {{/each}}
+        }
+    }
+
+    /// <summary>
+    /// Represents the {{Name}} entity from the database.
+    /// {{#if Description}}{{Description}}{{/if}}
+    /// </summary>
+    [Table("{{Name}}"{{#if Schema}}, Schema = "{{Schema}}"{{/if}})]
+    public partial class {{pascalCase Name}} : I{{pascalCase Name}}
+    {
+        #region Constructor
+        
+        public {{pascalCase Name}}()
+        {
+            {{#if HasForeignKeys}}
+            // Initialize navigation properties
+            {{#each ForeignKeys}}
+            {{#if IsSelfReferencing}}
+            {{navigationPropertyName ReferencedTableName false}} = null;
+            {{#if ../Options.GenerateNavigationProperties}}
+            {{navigationPropertyName ReferencedTableName true "Collection"}} = new HashSet<{{pascalCase ../Name}}>();
+            {{/if}}
+            {{else}}
+            {{navigationPropertyName ReferencedTableName false}} = null;
+            {{/if}}
+            {{/each}}
+            
+            {{#if Options.GenerateNavigationProperties}}
+            // Initialize collections for related entities
+            {{#each CollectionNavigations}}
+            {{PropertyName}} = new HashSet<{{pascalCase TableName}}>();
+            {{/each}}
+            
+            {{#each ManyToManyNavigations}}
+            {{PropertyName}} = new HashSet<{{pascalCase TargetTableName}}>();
+            {{/each}}
+            {{/if}}
+            {{/if}}
+        }
+        
+        #endregion
+        
+        #region Properties
+        
+        {{#each Columns}}
+        /// <summary>
+        /// {{#if Description}}{{Description}}{{else}}Gets or sets the {{Name}} property.{{/if}}
+        /// </summary>
+        {{#if IsPrimaryKey}}
+        [Key]
+        {{/if}}
+        {{#if IsIdentity}}
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        {{/if}}
+        {{#if IsComputed}}
+        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        {{/if}}
+        {{#if IsRequired}}
+        [Required]
+        {{/if}}
+        {{#if MaxLength}}
+        [MaxLength({{MaxLength}})]
+        {{/if}}
+        {{#if Precision}}
+        [Column(TypeName = "{{DataType}}({{Precision}}{{#if Scale}}, {{Scale}}{{/if}})")]
+        {{/if}}
+        {{#if Options.UseJsonSerialization}}
+        [JsonPropertyName("{{camelCase Name}}")]
+        {{/if}}
+        {{#if Options.UseNewtonsoft}}
+        [JsonProperty("{{camelCase Name}}")]
+        {{/if}}
+        public {{CSharpType}} {{pascalCase Name}} { get; set; }{{#if IsNullable}} = default;{{/if}}
+        
+        {{/each}}
+        #endregion
+        
+        {{#if Options.GenerateNavigationProperties}}
+        #region Navigation Properties
+        
+        {{#each ForeignKeys}}
+        /// <summary>
+        /// Navigation property for the {{ReferencedTableName}} entity referenced by {{Name}}.
+        /// </summary>
+        {{#if ../Options.UseJsonSerialization}}
+        [JsonIgnore]
+        {{/if}}
+        {{#if ../Options.UseNewtonsoft}}
+        [JsonIgnore]
+        {{/if}}
+        [ForeignKey("{{#each ColumnPairs}}{{ColumnName}}{{#unless @last}},{{/unless}}{{/each}}")]
+        public virtual {{pascalCase ReferencedTableName}} {{navigationPropertyName ReferencedTableName false}} { get; set; }
+        
+        {{#if IsSelfReferencing}}
+        /// <summary>
+        /// Collection navigation property for child {{../Name}} entities that reference this entity.
+        /// </summary>
+        {{#if ../Options.UseJsonSerialization}}
+        [JsonIgnore]
+        {{/if}}
+        {{#if ../Options.UseNewtonsoft}}
+        [JsonIgnore]
+        {{/if}}
+        public virtual ICollection<{{pascalCase ../Name}}> {{navigationPropertyName ../Name true "Collection"}} { get; set; }
+        {{/if}}
+        {{/each}}
+        
+        {{#each CollectionNavigations}}
+        /// <summary>
+        /// Collection navigation property for {{TableName}} entities that reference this entity.
+        /// </summary>
+        {{#if ../Options.UseJsonSerialization}}
+        [JsonIgnore]
+        {{/if}}
+        {{#if ../Options.UseNewtonsoft}}
+        [JsonIgnore]
+        {{/if}}
+        {{#if IsInverse}}
+        [InverseProperty("{{NavigationName}}")]
+        {{/if}}
+        public virtual ICollection<{{pascalCase TableName}}> {{PropertyName}} { get; set; }
+        {{/each}}
+        
+        {{#each ManyToManyNavigations}}
+        /// <summary>
+        /// Many-to-many navigation property for {{TargetTableName}} entities related through {{JunctionTableName}}.
+        /// </summary>
+        {{#if ../Options.UseJsonSerialization}}
+        [JsonIgnore]
+        {{/if}}
+        {{#if ../Options.UseNewtonsoft}}
+        [JsonIgnore]
+        {{/if}}
+        public virtual ICollection<{{pascalCase TargetTableName}}> {{PropertyName}} { get; set; }
+        {{/each}}
+        #endregion
+        {{/if}}
+        
+        {{#if Options.GenerateEquality}}
+        #region Equality Members
+        
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+            
+            var other = ({{pascalCase Name}})obj;
+            {{#if HasPrimaryKey}}
+            // Compare primary key properties
+            return {{#each PrimaryKey.Columns}}
+                   {{#if @index}} && {{/if}}Equals({{pascalCase Name}}, other.{{pascalCase Name}}){{/each}};
+            {{else}}
+            // No primary key, compare all properties
+            return {{#each Columns}}
+                   {{#if @index}} && {{/if}}Equals({{pascalCase Name}}, other.{{pascalCase Name}}){{/each}};
+            {{/if}}
+        }
+        
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                {{#if HasPrimaryKey}}
+                // Use primary key properties for hash code
+                {{#each PrimaryKey.Columns}}
+                hash = hash * 23 + ({{pascalCase Name}} != null ? {{pascalCase Name}}.GetHashCode() : 0);
+                {{/each}}
+                {{else}}
+                // No primary key, use all properties
+                {{#each Columns}}
+                hash = hash * 23 + ({{pascalCase Name}} != null ? {{pascalCase Name}}.GetHashCode() : 0);
+                {{/each}}
+                {{/if}}
+                return hash;
+            }
+        }
+        #endregion
+        {{/if}}
+        
+        {{#if Options.GenerateToString}}
+        #region ToString Override
+        
+        public override string ToString()
+        {
+            return $"{{pascalCase Name}} {{ {{#each Columns}}{{pascalCase Name}}={{{pascalCase Name}}}{{#unless @last}}, {{/unless}}{{/each}} }}";
+        }
+        #endregion
+        {{/if}}
+        
+        /// <summary>
+        /// Creates a DTO from this entity.
+        /// </summary>
+        public {{pascalCase Name}}Dto ToDto()
+        {
+            return {{pascalCase Name}}Dto.FromEntity(this);
+        }
+    }
+
+    {{#if Options.UseFluentApi}}
+    /// <summary>
+    /// Entity Framework configuration for the {{Name}} entity.
+    /// </summary>
+    public class {{pascalCase Name}}Configuration : IEntityTypeConfiguration<{{pascalCase Name}}>
+    {
+        /// <summary>
+        /// Configures the entity using Fluent API.
+        /// </summary>
+        public void Configure(EntityTypeBuilder<{{pascalCase Name}}> builder)
+        {
+            // Table configuration
+            builder.ToTable("{{Name}}"{{#if Schema}}, "{{Schema}}"{{/if}});
+            
+            // Key configuration
+            {{#if HasPrimaryKey}}
+            builder.HasKey(e => {{#if PrimaryKey.Columns.length gt 1}}new { {{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}e.{{pascalCase Name}}{{/each}} }{{else}}e.{{pascalCase PrimaryKey.Columns.0.Name}}{{/if}});
+            {{/if}}
+            
+            // Property configuration
+            {{#each Columns}}
+            builder.Property(e => e.{{pascalCase Name}})
+                .HasColumnName("{{Name}}")
+                {{#if IsRequired}}
+                .IsRequired()
+                {{/if}}
+                {{#if IsIdentity}}
+                .ValueGeneratedOnAdd()
+                {{/if}}
+                {{#if IsComputed}}
+                .ValueGeneratedOnAddOrUpdate()
+                {{/if}}
+                {{#if MaxLength}}
+                .HasMaxLength({{MaxLength}})
+                {{/if}}
+                {{#if Precision}}
+                .HasColumnType("{{DataType}}({{Precision}}{{#if Scale}}, {{Scale}}{{/if}})")
+                {{/if}}
+                {{#if DefaultValue}}
+                .HasDefaultValue("{{DefaultValue}}")
+                {{/if}};
+            
+            {{/each}}
+            
+            // Relationship configuration
+            {{#each ForeignKeys}}
+            builder.HasOne(e => e.{{navigationPropertyName ReferencedTableName false}})
+                .WithMany({{#if IsSelfReferencing}}e => e.{{navigationPropertyName ../Name true "Collection"}}{{else}}{{#if InversePropertyName}}e => e.{{InversePropertyName}}{{else}}null{{/if}}{{/if}})
+                .HasForeignKey({{#if ColumnPairs.length gt 1}}e => new { {{#each ColumnPairs}}{{#if @index}}, {{/if}}e.{{pascalCase ColumnName}}{{/each}} }{{else}}e => e.{{pascalCase ColumnPairs.0.ColumnName}}{{/if}})
+                .OnDelete(DeleteBehavior.{{DeleteAction}});
+            
+            {{/each}}
+            
+            {{#each ManyToManyNavigations}}
+            // Many-to-many relationship configuration
+            builder.HasMany(e => e.{{PropertyName}})
+                .WithMany(e => e.{{InversePropertyName}})
+                .UsingEntity<Dictionary<string, object>>(
+                    "{{JunctionTableName}}",
+                    j => j.HasOne<{{pascalCase TargetTableName}}>()
+                        .WithMany()
+                        .HasForeignKey("{{TargetForeignKeyColumn}}")
+                        .OnDelete(DeleteBehavior.Cascade),
+                    j => j.HasOne<{{pascalCase ../Name}}>()
+                        .WithMany()
+                        .HasForeignKey("{{SourceForeignKeyColumn}}")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                );
+            {{/each}}
+        }
+    }
+    {{/if}}
+}

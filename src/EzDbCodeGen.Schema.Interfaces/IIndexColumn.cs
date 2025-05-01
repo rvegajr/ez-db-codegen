@@ -11,6 +11,11 @@ public interface IIndexColumn
     IColumn Column { get; }
     
     /// <summary>
+    /// Gets the name of the column.
+    /// </summary>
+    string Name { get; }
+    
+    /// <summary>
     /// Gets the ordinal position of the column in the index.
     /// </summary>
     int OrdinalPosition { get; }

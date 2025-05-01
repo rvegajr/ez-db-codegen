@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EzDbCodeGen.Schema.Extensions;
 using EzDbCodeGen.Schema.Interfaces;
 using EzDbCodeGen.Schema.Models;
 using Microsoft.Extensions.Logging;
@@ -84,17 +85,17 @@ public class RelationshipAnalyzer
                 var relationship = new RelationshipInfo
                 {
                     Type = RelationshipType.ManyToMany,
-                    SourceTable = fk1.ReferencedTable,
-                    TargetTable = fk2.ReferencedTable,
+                    SourceTable = fk1.ReferencedTable ?? throw new InvalidOperationException("Referenced table cannot be null in a many-to-many relationship"),
+                    TargetTable = fk2.ReferencedTable ?? throw new InvalidOperationException("Referenced table cannot be null in a many-to-many relationship"),
                     JunctionTable = table,
                     SourceToJunctionForeignKey = fk1,
                     JunctionToTargetForeignKey = fk2,
-                    Name = $"ManyToMany_{fk1.ReferencedTable.Name}_{fk2.ReferencedTable.Name}"
+                    Name = $"ManyToMany_{fk1.ReferencedTable?.Name ?? "Unknown"}_{fk2.ReferencedTable?.Name ?? "Unknown"}"
                 };
                 
                 manyToManyRelationships.Add(relationship);
                 _logger?.LogInformation("Detected many-to-many relationship between {SourceTable} and {TargetTable} via junction table {JunctionTable}",
-                    fk1.ReferencedTable.Name, fk2.ReferencedTable.Name, table.Name);
+                    fk1.ReferencedTable?.Name ?? "Unknown", fk2.ReferencedTable?.Name ?? "Unknown", table.Name);
             }
         }
         
@@ -108,7 +109,7 @@ public class RelationshipAnalyzer
     /// <param name="sourceToJunctionFk">The foreign key from the source to the junction table.</param>
     /// <param name="junctionToTargetFk">The foreign key from the junction table to the target table.</param>
     /// <returns>True if the table is a junction table; otherwise, false.</returns>
-    private bool IsJunctionTable(ITable table, out IForeignKey sourceToJunctionFk, out IForeignKey junctionToTargetFk)
+    private bool IsJunctionTable(ITable table, out IForeignKey? sourceToJunctionFk, out IForeignKey? junctionToTargetFk)
     {
         sourceToJunctionFk = null;
         junctionToTargetFk = null;
@@ -170,15 +171,15 @@ public class RelationshipAnalyzer
                     var relationship = new RelationshipInfo
                     {
                         Type = RelationshipType.OneToOne,
-                        SourceTable = foreignKey.Table,
-                        TargetTable = foreignKey.ReferencedTable,
+                        SourceTable = foreignKey.Table ?? throw new InvalidOperationException("Table cannot be null in a one-to-one relationship"),
+                        TargetTable = foreignKey.ReferencedTable ?? throw new InvalidOperationException("Referenced table cannot be null in a one-to-one relationship"),
                         ForeignKey = foreignKey,
-                        Name = $"OneToOne_{foreignKey.Table.Name}_{foreignKey.ReferencedTable.Name}"
+                        Name = $"OneToOne_{foreignKey.Table?.Name ?? "Unknown"}_{foreignKey.ReferencedTable?.Name ?? "Unknown"}"
                     };
                     
                     oneToOneRelationships.Add(relationship);
                     _logger?.LogInformation("Detected one-to-one relationship between {SourceTable} and {TargetTable}",
-                        foreignKey.Table.Name, foreignKey.ReferencedTable.Name);
+                        foreignKey.Table?.Name ?? "Unknown", foreignKey.ReferencedTable?.Name ?? "Unknown");
                 }
             }
         }
@@ -413,6 +414,21 @@ public class RelationshipAnalyzer
 /// </summary>
 public class RelationshipInfo
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RelationshipInfo"/> class.
+    /// </summary>
+    public RelationshipInfo()
+    {
+        Name = string.Empty;
+        SourceTable = null!;
+        TargetTable = null!;
+        JunctionTable = null!;
+        ForeignKey = null!;
+        SourceToJunctionForeignKey = null!;
+        JunctionToTargetForeignKey = null!;
+        DiscriminatorColumn = null!;
+    }
+
     /// <summary>
     /// Gets or sets the type of the relationship.
     /// </summary>

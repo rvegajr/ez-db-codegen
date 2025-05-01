@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace EzDbCodeGen.Schema.Interfaces;
@@ -26,4 +27,10 @@ public interface IDatabaseSchemaProvider
     /// Gets the provider type.
     /// </summary>
     string ProviderType { get; }
+    
+    /// <summary>
+    /// Configures the provider with the specified settings.
+    /// </summary>
+    /// <param name="settings">The settings to configure the provider with.</param>
+    void Configure(IDictionary<string, string> settings);
 }

@@ -1,14 +1,14 @@
 using System;
-using EzDbCodeGen.CodeGen;
 using EzDbCodeGen.CodeGen.Interfaces;
-using EzDbCodeGen.Schema;
-using EzDbCodeGen.Schema.Analysis;
-using EzDbCodeGen.Schema.Filters;
 using EzDbCodeGen.Schema.Interfaces;
-using EzDbCodeGen.Schema.Providers;
-using EzDbCodeGen.TemplateEngine;
-using EzDbCodeGen.TemplateEngine.Filters;
-using EzDbCodeGen.TypeMapping;
+using EzDbCodeGen.Schema.Interfaces.Analysis;
+using EzDbCodeGen.Schema.Interfaces.Filters;
+using EzDbCodeGen.Schema.Interfaces.Providers;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
+using EzDbCodeGen.TemplateEngine.Interfaces.Helpers;
+using EzDbCodeGen.TypeMapping.Interfaces;
+using HandlebarsDotNet;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
 
         // Register database schema providers
         services.AddSingleton<IDatabaseSchemaProviderFactory, DatabaseSchemaProviderFactory>();
-        services.AddTransient<SqlServerSchemaProvider>();
+        services.AddTransient<ISqlServerSchemaProvider, SqlServerSchemaProvider>();
 
         // Register template engine services
         services.AddSingleton<ITemplateEngineFactory, TemplateEngineFactory>();
@@ -43,20 +43,30 @@ public static class ServiceCollectionExtensions
         
         // Register filters
         services.AddTransient<ITemplateFilter, OutputTemplateFilter>();
-        services.AddTransient<PatternSchemaFilter>();
+        services.AddTransient<ISchemaFilter, PatternSchemaFilter>();
         
         // Register type mapping services
         services.AddSingleton<IDataTypeMapFactory, DataTypeMapFactory>();
         services.AddTransient<IDataTypeMap, SqlServerDataTypeMap>();
         
         // Register schema analysis services
-        services.AddTransient<RelationshipAnalyzer>();
+        services.AddTransient<IRelationshipAnalyzer, RelationshipAnalyzer>();
         
         // Register model adapter services
         services.AddTransient<ISchemaModelAdapter, SchemaModelAdapter>();
         
         // Register code generation services
         services.AddTransient<ICodeGenerator, CodeGenerator>();
+
+        // Register template engine helpers
+        services.AddSingleton<ISchemaHelper, HandlebarsSchemaHelpers>();
+        services.AddSingleton<IRelationshipHelper, HandlebarsRelationshipHelpers>();
+        services.AddSingleton<ICodeFormatHelper, HandlebarsCodeFormatHelpers>();
+        services.AddSingleton<IDocumentationHelper, HandlebarsDocumentationHelpers>();
+        services.AddSingleton<ILayoutHelper, HandlebarsLayoutHelpers>();
+        services.AddSingleton<IStringFormatHelper, HandlebarsStringFormatHelpers>();
+        services.AddSingleton<ITypeConversionHelper, HandlebarsTypeConversionHelpers>();
+        services.AddSingleton<ITestHelper, HandlebarsTestHelpers>();
 
         return services;
     }
@@ -76,7 +86,7 @@ public static class ServiceCollectionExtensions
         services.AddEzDbCodeGen();
         
         // Register SQL Server specific services
-        services.AddTransient<IDatabaseSchemaProvider, SqlServerSchemaProvider>(sp =>
+        services.AddTransient<ISqlServerSchemaProvider, SqlServerSchemaProvider>(sp =>
         {
             var loggerFactory = sp.GetService<ILoggerFactory>();
             return new SqlServerSchemaProvider(loggerFactory?.CreateLogger<SqlServerSchemaProvider>());
@@ -132,5 +142,27 @@ public static class ServiceCollectionExtensions
         configure(options);
         
         return options;
+    }
+    
+    /// <summary>
+    /// Registers all Handlebars helpers with the Handlebars instance.
+    /// </summary>
+    /// <param name="handlebars">The Handlebars instance to register helpers with.</param>
+    public static void RegisterHandlebarsHelpers(HandlebarsDotNet.IHandlebars handlebars)
+    {
+        if (handlebars == null)
+        {
+            throw new ArgumentNullException(nameof(handlebars));
+        }
+
+        // Register all helpers
+        HandlebarsSchemaHelpers.RegisterHelpers(handlebars);
+        HandlebarsRelationshipHelpers.RegisterHelpers(handlebars);
+        HandlebarsCodeFormatHelpers.RegisterHelpers(handlebars);
+        HandlebarsDocumentationHelpers.RegisterHelpers(handlebars);
+        HandlebarsLayoutHelpers.RegisterHelpers(handlebars);
+        HandlebarsStringFormatHelpers.RegisterHelpers(handlebars);
+        HandlebarsTypeConversionHelpers.RegisterHelpers(handlebars);
+        HandlebarsTestHelpers.RegisterHelpers(handlebars);
     }
 }

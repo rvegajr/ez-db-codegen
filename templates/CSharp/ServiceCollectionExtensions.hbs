@@ -1,0 +1,63 @@
+using System;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using {{Options.Namespace}}.Repositories;
+
+namespace {{Options.Namespace}}
+{
+    /// <summary>
+    /// Extension methods for configuring dependency injection for database services.
+    /// </summary>
+    public static class ServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Adds the database context and repositories to the service collection.
+        /// </summary>
+        /// <param name="services">The service collection to add services to.</param>
+        /// <param name="configuration">The configuration containing connection strings.</param>
+        /// <param name="connectionStringName">The name of the connection string to use (default: "{{Options.ConnectionStringName}}").</param>
+        /// <returns>The service collection for chaining.</returns>
+        public static IServiceCollection Add{{Options.ContextName}}Services(
+            this IServiceCollection services,
+            IConfiguration configuration,
+            string connectionStringName = "{{Options.ConnectionStringName}}")
+        {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            
+            // Add DbContext
+            services.AddDbContext<{{Options.ContextName}}>(options =>
+            {
+                options.UseSqlServer(
+                    configuration.GetConnectionString(connectionStringName),
+                    sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(30),
+                            errorNumbersToAdd: null);
+                        
+                        {{#if Options.CommandTimeout}}
+                        sqlOptions.CommandTimeout({{Options.CommandTimeout}});
+                        {{/if}}
+                    });
+                
+                {{#if Options.EnableSensitiveDataLogging}}
+                options.EnableSensitiveDataLogging();
+                {{/if}}
+                
+                {{#if Options.EnableDetailedErrors}}
+                options.EnableDetailedErrors();
+                {{/if}}
+            });
+            
+            // Add repositories
+            {{#each Tables}}
+            services.AddScoped<I{{pascalCase Name}}Repository, {{pascalCase Name}}Repository>();
+            {{/each}}
+            
+            return services;
+        }
+    }
+}

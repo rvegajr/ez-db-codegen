@@ -63,9 +63,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added schema include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding schema include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding schema include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -88,9 +88,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added schema exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding schema exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding schema exclude pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -113,9 +113,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added table include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding table include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding table include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -138,9 +138,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added table exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding table exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding table exclude pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -163,9 +163,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added column include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding column include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding column include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -188,9 +188,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added column exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding column exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding column exclude pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -213,9 +213,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added view include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding view include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding view include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -238,9 +238,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added view exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding view exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding view exclude pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -263,9 +263,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added stored procedure include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding stored procedure include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding stored procedure include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -288,9 +288,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added stored procedure exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding stored procedure exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding stored procedure exclude pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -313,9 +313,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added function include pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding function include pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding function include pattern: {Pattern}", pattern);
             throw;
         }
     }
@@ -338,9 +338,9 @@ public class PatternSchemaFilter : ISchemaFilter
             _logger?.LogDebug("Added function exclude pattern: {Pattern}", pattern);
             return this;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger?.LogError(ex, "Error adding function exclude pattern: {Pattern}", pattern);
+            _logger?.LogError("Error adding function exclude pattern: {Pattern}", pattern);
             throw;
         }
     }

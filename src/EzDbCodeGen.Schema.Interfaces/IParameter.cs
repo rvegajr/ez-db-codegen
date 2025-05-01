@@ -1,6 +1,32 @@
 namespace EzDbCodeGen.Schema.Interfaces;
 
 /// <summary>
+/// Represents the direction of a parameter in a stored procedure or function.
+/// </summary>
+public enum ParameterDirection
+{
+    /// <summary>
+    /// The parameter is an input parameter.
+    /// </summary>
+    Input,
+    
+    /// <summary>
+    /// The parameter is an output parameter.
+    /// </summary>
+    Output,
+    
+    /// <summary>
+    /// The parameter is both an input and output parameter.
+    /// </summary>
+    InputOutput,
+    
+    /// <summary>
+    /// The parameter is a return value.
+    /// </summary>
+    ReturnValue
+}
+
+/// <summary>
 /// Represents a parameter in a stored procedure or function.
 /// </summary>
 public interface IParameter
@@ -39,6 +65,11 @@ public interface IParameter
     /// Gets the scale of the parameter.
     /// </summary>
     int? Scale { get; }
+    
+    /// <summary>
+    /// Gets the direction of the parameter.
+    /// </summary>
+    ParameterDirection Direction { get; }
     
     /// <summary>
     /// Gets a value indicating whether the parameter is an output parameter.

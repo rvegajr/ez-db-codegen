@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using EzDbCodeGen.Core.TemplateEngine.Helpers;
+using EzDbCodeGen.TemplateEngine.Interfaces;
 using HandlebarsDotNet;
 
 namespace EzDbCodeGen.TemplateEngine

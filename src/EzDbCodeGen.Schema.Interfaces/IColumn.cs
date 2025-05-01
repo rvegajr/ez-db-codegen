@@ -56,6 +56,31 @@ public interface IColumn
     string? DefaultValue { get; }
     
     /// <summary>
+    /// Gets the computed column expression.
+    /// </summary>
+    string? ComputedColumnExpression { get; }
+    
+    /// <summary>
+    /// Gets the collation of the column.
+    /// </summary>
+    string? Collation { get; }
+    
+    /// <summary>
+    /// Gets a value indicating whether the column is part of the primary key.
+    /// </summary>
+    bool IsPartOfPrimaryKey { get; }
+    
+    /// <summary>
+    /// Gets a value indicating whether the column is part of a unique constraint.
+    /// </summary>
+    bool IsPartOfUniqueConstraint { get; }
+    
+    /// <summary>
+    /// Gets a value indicating whether the column is part of a foreign key.
+    /// </summary>
+    bool IsPartOfForeignKey { get; }
+    
+    /// <summary>
     /// Gets the table that the column belongs to.
     /// </summary>
     ITable Table { get; }

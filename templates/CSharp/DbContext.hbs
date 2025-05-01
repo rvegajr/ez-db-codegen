@@ -1,0 +1,183 @@
+using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+
+namespace {{Options.Namespace}}
+{
+    /// <summary>
+    /// Entity Framework DbContext for the {{Options.ContextName}} database.
+    /// </summary>
+    public partial class {{Options.ContextName}} : DbContext
+    {
+        private readonly IConfiguration _configuration;
+        
+        #region Constructor
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="{{Options.ContextName}}"/> class.
+        /// </summary>
+        public {{Options.ContextName}}()
+        {
+        }
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="{{Options.ContextName}}"/> class with the specified options.
+        /// </summary>
+        /// <param name="options">The options to be used by this context.</param>
+        public {{Options.ContextName}}(DbContextOptions<{{Options.ContextName}}> options)
+            : base(options)
+        {
+        }
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="{{Options.ContextName}}"/> class with the specified options and configuration.
+        /// </summary>
+        /// <param name="options">The options to be used by this context.</param>
+        /// <param name="configuration">The configuration to be used for connection strings.</param>
+        public {{Options.ContextName}}(DbContextOptions<{{Options.ContextName}}> options, IConfiguration configuration)
+            : base(options)
+        {
+            _configuration = configuration;
+        }
+        
+        #endregion
+        
+        #region DbSets
+        
+        {{#each Tables}}
+        /// <summary>
+        /// Gets or sets the DbSet for {{Name}} entities.
+        /// {{#if Description}}{{Description}}{{/if}}
+        /// </summary>
+        public virtual DbSet<{{pascalCase Name}}> {{pluralize (pascalCase Name)}} { get; set; }
+        
+        {{/each}}
+        #endregion
+        
+        #region OnConfiguring
+        
+        /// <summary>
+        /// Configures the database connection to use.
+        /// </summary>
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                {{#if Options.UseConnectionString}}
+                optionsBuilder.UseSqlServer("{{Options.ConnectionString}}");
+                {{else}}
+                if (_configuration != null)
+                {
+                    optionsBuilder.UseSqlServer(_configuration.GetConnectionString("{{Options.ConnectionStringName}}"));
+                }
+                else
+                {
+                    // Default connection string for design-time tools
+                    optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database={{Options.DatabaseName}};Trusted_Connection=True;");
+                }
+                {{/if}}
+                
+                {{#if Options.EnableSensitiveDataLogging}}
+                optionsBuilder.EnableSensitiveDataLogging();
+                {{/if}}
+                
+                {{#if Options.EnableDetailedErrors}}
+                optionsBuilder.EnableDetailedErrors();
+                {{/if}}
+            }
+        }
+        
+        #endregion
+        
+        #region OnModelCreating
+        
+        /// <summary>
+        /// Configures the model that was discovered by convention from the entity types.
+        /// </summary>
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            
+            {{#if Options.UseFluentApi}}
+            // Apply entity configurations
+            {{#each Tables}}
+            modelBuilder.ApplyConfiguration(new {{pascalCase Name}}Configuration());
+            {{/each}}
+            {{else}}
+            // Configure entities using fluent API
+            {{#each Tables}}
+            // Configure {{Name}} entity
+            modelBuilder.Entity<{{pascalCase Name}}>(entity =>
+            {
+                // Table configuration
+                entity.ToTable("{{Name}}"{{#if Schema}}, "{{Schema}}"{{/if}});
+                
+                // Key configuration
+                {{#if HasPrimaryKey}}
+                entity.HasKey(e => {{#if PrimaryKey.Columns.length gt 1}}new { {{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}e.{{pascalCase Name}}{{/each}} }{{else}}e.{{pascalCase PrimaryKey.Columns.0.Name}}{{/if}});
+                {{/if}}
+                
+                // Property configuration
+                {{#each Columns}}
+                entity.Property(e => e.{{pascalCase Name}})
+                    .HasColumnName("{{Name}}")
+                    {{#if IsRequired}}
+                    .IsRequired()
+                    {{/if}}
+                    {{#if IsIdentity}}
+                    .ValueGeneratedOnAdd()
+                    {{/if}}
+                    {{#if IsComputed}}
+                    .ValueGeneratedOnAddOrUpdate()
+                    {{/if}}
+                    {{#if MaxLength}}
+                    .HasMaxLength({{MaxLength}})
+                    {{/if}}
+                    {{#if Precision}}
+                    .HasColumnType("{{DataType}}({{Precision}}{{#if Scale}}, {{Scale}}{{/if}})")
+                    {{/if}}
+                    {{#if DefaultValue}}
+                    .HasDefaultValue("{{DefaultValue}}")
+                    {{/if}};
+                
+                {{/each}}
+                
+                // Relationship configuration
+                {{#each ForeignKeys}}
+                entity.HasOne(e => e.{{navigationPropertyName ReferencedTableName false}})
+                    .WithMany({{#if IsSelfReferencing}}e => e.{{navigationPropertyName ../Name true "Collection"}}{{else}}{{#if InversePropertyName}}e => e.{{InversePropertyName}}{{else}}null{{/if}}{{/if}})
+                    .HasForeignKey({{#if ColumnPairs.length gt 1}}e => new { {{#each ColumnPairs}}{{#if @index}}, {{/if}}e.{{pascalCase ColumnName}}{{/each}} }{{else}}e => e.{{pascalCase ColumnPairs.0.ColumnName}}{{/if}})
+                    .OnDelete(DeleteBehavior.{{DeleteAction}});
+                
+                {{/each}}
+                
+                {{#each ManyToManyNavigations}}
+                // Many-to-many relationship configuration
+                entity.HasMany(e => e.{{PropertyName}})
+                    .WithMany(e => e.{{InversePropertyName}})
+                    .UsingEntity<Dictionary<string, object>>(
+                        "{{JunctionTableName}}",
+                        j => j.HasOne<{{pascalCase TargetTableName}}>()
+                            .WithMany()
+                            .HasForeignKey("{{TargetForeignKeyColumn}}")
+                            .OnDelete(DeleteBehavior.Cascade),
+                        j => j.HasOne<{{pascalCase ../Name}}>()
+                            .WithMany()
+                            .HasForeignKey("{{SourceForeignKeyColumn}}")
+                            .OnDelete(DeleteBehavior.ClientCascade)
+                    );
+                {{/each}}
+            });
+            
+            {{/each}}
+            {{/if}}
+            
+            OnModelCreatingPartial(modelBuilder);
+        }
+        
+        partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+        
+        #endregion
+    }
+}

@@ -1,0 +1,193 @@
+{{!-- 
+ModelTestHarness.hbs - Template for testing model generation
+This template generates:
+1. A model class representation for validation
+2. Test data about the model's properties and relationships
+3. Debug visualization of the internal schema representation
+--}}
+
+// ==========================================================
+// MODEL CLASS REPRESENTATION
+// ==========================================================
+{{#*inline "model_class"}}
+namespace {{namespace}}.Models;
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+/// <summary>
+/// {{description}}
+/// </summary>
+[Table("{{tableName}}", Schema = "{{schemaName}}")]
+public partial class {{className}}
+{
+    {{#if hasCollectionProperties}}
+    // Collection initializers in constructor
+    public {{className}}()
+    {
+        {{#each collectionProperties}}
+        {{propertyName}} = new HashSet<{{typeName}}>();
+        {{/each}}
+    }
+    {{/if}}
+
+    // Primary key properties
+    {{#each primaryKeyProperties}}
+    [Key]
+    {{#if isIdentity}}[DatabaseGenerated(DatabaseGeneratedOption.Identity)]{{/if}}
+    {{#if isComputed}}[DatabaseGenerated(DatabaseGeneratedOption.Computed)]{{/if}}
+    {{#each annotations}}
+    [{{name}}{{#if hasParameters}}({{parameters}}){{/if}}]
+    {{/each}}
+    public {{typeName}} {{propertyName}} { get; set; }{{#if isNullable}}?{{/if}}
+    {{/each}}
+
+    // Regular properties
+    {{#each regularProperties}}
+    {{#each annotations}}
+    [{{name}}{{#if hasParameters}}({{parameters}}){{/if}}]
+    {{/each}}
+    public {{typeName}} {{propertyName}} { get; set; }{{#if isNullable}}?{{/if}}
+    {{/each}}
+
+    // Navigation properties
+    {{#each navigationProperties}}
+    {{#if isCollection}}
+    /// <summary>
+    /// {{description}}
+    /// </summary>
+    public virtual ICollection<{{typeName}}> {{propertyName}} { get; set; }
+    {{else}}
+    /// <summary>
+    /// {{description}}
+    /// </summary>
+    {{#if foreignKeyAnnotation}}
+    [ForeignKey("{{foreignKeyName}}")]
+    {{/if}}
+    public virtual {{typeName}}{{#if isNullable}}?{{/if}} {{propertyName}} { get; set; }
+    {{/if}}
+    {{/each}}
+}
+{{/inline}}
+
+// ==========================================================
+// TEST DATA REPRESENTATION
+// ==========================================================
+{{#*inline "test_data"}}
+{
+  "TableMetadata": {
+    "Name": "{{tableName}}",
+    "Schema": "{{schemaName}}",
+    "ClassName": "{{className}}",
+    "HasCompositeKey": {{hasCompositeKey}},
+    "EntityType": "{{entityType}}"
+  },
+  "PrimaryKey": [
+    {{#each primaryKeyProperties}}
+    {
+      "Name": "{{propertyName}}",
+      "ColumnName": "{{columnName}}",
+      "Type": "{{typeName}}",
+      "IsIdentity": {{isIdentity}},
+      "IsComputed": {{isComputed}},
+      "IsNullable": {{isNullable}}
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ],
+  "Properties": [
+    {{#each regularProperties}}
+    {
+      "Name": "{{propertyName}}",
+      "ColumnName": "{{columnName}}",
+      "Type": "{{typeName}}",
+      "IsNullable": {{isNullable}},
+      "MaxLength": {{maxLength}},
+      "Precision": {{precision}},
+      "Scale": {{scale}},
+      "HasDefaultValue": {{hasDefaultValue}},
+      "DefaultValue": "{{defaultValue}}",
+      "Annotations": [
+        {{#each annotations}}
+        "{{name}}{{#if hasParameters}}({{parameters}}){{/if}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ]
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ],
+  "Relationships": [
+    {{#each relationships}}
+    {
+      "Type": "{{type}}",
+      "NavigationProperty": "{{navigationPropertyName}}",
+      "InverseNavigationProperty": "{{inverseNavigationPropertyName}}",
+      "ForeignKeyProperties": [
+        {{#each foreignKeyProperties}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      "PrincipalKeyProperties": [
+        {{#each principalKeyProperties}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      "RelatedEntityName": "{{relatedEntityName}}"
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ]
+}
+{{/inline}}
+
+// ==========================================================
+// SCHEMA DEBUG VIEW
+// ==========================================================
+{{#*inline "schema_debug"}}
+/*
+ * ===== SCHEMA DEBUG INFORMATION =====
+ * This section provides raw access to the schema objects for debugging
+ */
+
+/* Table: {{table.Name}} */
+/* Columns: {{columnCount}} */
+{{#each columns}}
+/* - {{Name}} ({{DataType}}{{#if MaxLength}}({{MaxLength}}){{/if}}{{#if Precision}}({{Precision}},{{Scale}}){{/if}}){{#if IsNullable}}?{{/if}}{{#if IsPrimaryKey}} PK{{/if}}{{#if IsIdentity}} IDENTITY{{/if}}{{#if IsComputed}} COMPUTED{{/if}} */
+{{/each}}
+
+/* Foreign Keys: {{foreignKeyCount}} */
+{{#each foreignKeys}}
+/* - FK_{{Name}}: {{ColumnNames}} -> {{ReferencedTableName}}({{ReferencedColumnNames}}) */
+{{/each}}
+
+/* Indexes: {{indexCount}} */
+{{#each indexes}}
+/* - IDX_{{Name}}: {{ColumnNames}}{{#if IsUnique}} UNIQUE{{/if}} */
+{{/each}}
+
+/* Detected Relationships */
+{{#each relationships}}
+/* - {{Type}}: {{SourceTable}} -> {{TargetTable}} */
+{{/each}}
+
+/* Navigation Property Naming */
+{{#each navigationProperties}}
+/* - {{propertyName}}: {{ownerType}} -> {{targetType}}{{#if isCollection}} (Collection){{/if}} */
+{{/each}}
+{{/inline}}
+
+// ==========================================================
+// MAIN TEMPLATE OUTPUT
+// ==========================================================
+
+// MODEL CLASS OUTPUT
+{{> model_class}}
+
+// TEST DATA OUTPUT - Used for validation
+/*
+{{> test_data}}
+*/
+
+// SCHEMA DEBUG VIEW - For development purposes
+/*
+{{> schema_debug}}
+*/

@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "ez-db-codegen-core",
+			"path": "../../../ez-db-codegen-core"
+		},
+		{
+			"name": "ez-db-schema-core",
+			"path": "../../../ez-db-schema-core"
+		},
+		{
+			"name": "sql-server-samples",
+			"path": "../../../MSSQL/sql-server-samples"
+		},
+		{
+			"name": "ez-db-codegen",
+			"path": "../.."
+		}
+	],
+	"settings": {}
+}

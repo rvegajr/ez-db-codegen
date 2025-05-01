@@ -1,0 +1,92 @@
+{{!--
+StoredProcedureWrapper.hbs - Template for generating wrappers for database stored procedures
+This template creates a strongly-typed wrapper class for executing stored procedures,
+including proper parameter handling and result mapping.
+--}}
+{{#formatEz layout="standard"}}
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+using Dapper;
+
+namespace {{namespace}}.Data.Procedures
+{
+    {{#docEz format="xml" description=(or procedure.Description (formatEz value=(string "Wrapper for " procedure.Name " stored procedure")))}}
+    public class {{formatEz case="pascal" value=procedure.Name}}Procedure
+    {
+        private readonly string _connectionString;
+
+        {{#docEz format="xml" description=(formatEz value=(string "Initializes a new instance of the " (formatEz case="pascal" value=procedure.Name) "Procedure class"))}}
+        {{#docEz format="xml" paramName="connectionString" paramDesc="The database connection string."}}
+        public {{formatEz case="pascal" value=procedure.Name}}Procedure(string connectionString)
+        {
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        }
+
+        {{#if procedure.ResultColumns}}
+        {{#docEz format="xml" description="Executes the stored procedure and returns the results."}}
+        {{#each procedure.Parameters}}
+        {{#docEz format="xml" paramName=(formatEz case="camel" value=name) paramDesc=(or description (formatEz value=(string "The " name " parameter")))}}
+        {{/each}}
+        {{#docEz format="xml" returns="A collection of results from the stored procedure."}}
+        public async Task<IEnumerable<{{formatEz case="pascal" value=procedure.Name}}Result>> ExecuteAsync({{#each procedure.Parameters}}{{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}})
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                
+                var parameters = new DynamicParameters();
+                {{#each procedure.Parameters}}
+                parameters.Add("{{name}}", {{formatEz case="camel" value=name}}{{#if isOutput}}, direction: ParameterDirection.{{#if isOutput}}Output{{else}}Input{{/if}}{{/if}});
+                {{/each}}
+                
+                return await connection.QueryAsync<{{formatEz case="pascal" value=procedure.Name}}Result>(
+                    "[{{procedure.Schema}}].[{{procedure.Name}}]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+        {{else}}
+        {{#docEz format="xml" description="Executes the stored procedure."}}
+        {{#each procedure.Parameters}}
+        {{#docEz format="xml" paramName=(formatEz case="camel" value=name) paramDesc=(or description (formatEz value=(string "The " name " parameter")))}}
+        {{/each}}
+        {{#docEz format="xml" returns="The number of rows affected."}}
+        public async Task<int> ExecuteAsync({{#each procedure.Parameters}}{{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}})
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                
+                var parameters = new DynamicParameters();
+                {{#each procedure.Parameters}}
+                parameters.Add("{{name}}", {{formatEz case="camel" value=name}}{{#if isOutput}}, direction: ParameterDirection.{{#if isOutput}}Output{{else}}Input{{/if}}{{/if}});
+                {{/each}}
+                
+                return await connection.ExecuteAsync(
+                    "[{{procedure.Schema}}].[{{procedure.Name}}]",
+                    parameters,
+                    commandType: CommandType.StoredProcedure);
+            }
+        }
+        {{/if}}
+    }
+
+    {{#if procedure.ResultColumns}}
+    {{#docEz format="xml" description=(formatEz value=(string "Result class for " procedure.Name " stored procedure"))}}
+    public class {{formatEz case="pascal" value=procedure.Name}}Result
+    {
+        {{#each procedure.ResultColumns}}
+        {{#docEz format="xml" description=(or description (formatEz value=(string "Gets or sets the " (formatEz case="pascal" value=name) " property")))}}
+        {{#if isRequired}}[Required]{{/if}}
+        {{#if maxLength}}[MaxLength({{maxLength}})]{{/if}}
+        {{#if columnName}}[Column("{{columnName}}")]{{/if}}
+        public {{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="pascal" value=name}} { get; set; }
+        
+        {{/each}}
+    }
+    {{/if}}
+}
+{{/formatEz}}

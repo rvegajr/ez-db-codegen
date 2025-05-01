@@ -1,0 +1,405 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+namespace {{Options.Namespace}}.Repositories
+{
+    /// <summary>
+    /// Interface for the repository of {{pascalCase Name}} entities.
+    /// </summary>
+    public interface I{{pascalCase Name}}Repository
+    {
+        /// <summary>
+        /// Gets all {{pluralize (pascalCase Name)}}.
+        /// </summary>
+        Task<List<{{pascalCase Name}}>> GetAllAsync();
+        
+        /// <summary>
+        /// Gets a {{pascalCase Name}} by its primary key.
+        /// </summary>
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        Task<{{pascalCase Name}}> GetByIdAsync({{PrimaryKey.Columns.0.CSharpType}} id);
+        {{else}}
+        Task<{{pascalCase Name}}> GetByIdAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}});
+        {{/if}}
+        {{else}}
+        // No primary key defined for this entity
+        {{/if}}
+        
+        /// <summary>
+        /// Adds a new {{pascalCase Name}}.
+        /// </summary>
+        Task<{{pascalCase Name}}> AddAsync({{pascalCase Name}} entity);
+        
+        /// <summary>
+        /// Updates an existing {{pascalCase Name}}.
+        /// </summary>
+        Task<bool> UpdateAsync({{pascalCase Name}} entity);
+        
+        /// <summary>
+        /// Deletes a {{pascalCase Name}}.
+        /// </summary>
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        Task<bool> DeleteAsync({{PrimaryKey.Columns.0.CSharpType}} id);
+        {{else}}
+        Task<bool> DeleteAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}});
+        {{/if}}
+        {{else}}
+        Task<bool> DeleteAsync({{pascalCase Name}} entity);
+        {{/if}}
+        
+        /// <summary>
+        /// Gets all {{pluralize (pascalCase Name)}} as DTOs.
+        /// </summary>
+        Task<List<{{pascalCase Name}}Dto>> GetAllDtosAsync();
+        
+        /// <summary>
+        /// Gets a {{pascalCase Name}} DTO by its primary key.
+        /// </summary>
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        Task<{{pascalCase Name}}Dto> GetDtoByIdAsync({{PrimaryKey.Columns.0.CSharpType}} id);
+        {{else}}
+        Task<{{pascalCase Name}}Dto> GetDtoByIdAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}});
+        {{/if}}
+        {{else}}
+        // No primary key defined for this entity
+        {{/if}}
+        
+        /// <summary>
+        /// Adds a new {{pascalCase Name}} from a DTO.
+        /// </summary>
+        Task<{{pascalCase Name}}Dto> AddFromDtoAsync({{pascalCase Name}}Dto dto);
+        
+        /// <summary>
+        /// Updates an existing {{pascalCase Name}} from a DTO.
+        /// </summary>
+        Task<bool> UpdateFromDtoAsync({{pascalCase Name}}Dto dto);
+    }
+
+    /// <summary>
+    /// Repository implementation for {{pascalCase Name}} entities.
+    /// </summary>
+    public class {{pascalCase Name}}Repository : I{{pascalCase Name}}Repository
+    {
+        private readonly {{Options.ContextName}} _context;
+        private readonly ILogger<{{pascalCase Name}}Repository> _logger;
+        
+        /// <summary>
+        /// Initializes a new instance of the <see cref="{{pascalCase Name}}Repository"/> class.
+        /// </summary>
+        public {{pascalCase Name}}Repository({{Options.ContextName}} context, ILogger<{{pascalCase Name}}Repository> logger)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+        
+        /// <inheritdoc />
+        public async Task<List<{{pascalCase Name}}>> GetAllAsync()
+        {
+            try
+            {
+                return await _context.{{pluralize (pascalCase Name)}}
+                    {{#if Options.IncludeNavigationProperties}}
+                    {{#each ForeignKeys}}
+                    .Include(e => e.{{navigationPropertyName ReferencedTableName false}})
+                    {{/each}}
+                    {{/if}}
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all {{pluralize (pascalCase Name)}}");
+                throw;
+            }
+        }
+        
+        /// <inheritdoc />
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        public async Task<{{pascalCase Name}}> GetByIdAsync({{PrimaryKey.Columns.0.CSharpType}} id)
+        {
+            try
+            {
+                return await _context.{{pluralize (pascalCase Name)}}
+                    {{#if Options.IncludeNavigationProperties}}
+                    {{#each ForeignKeys}}
+                    .Include(e => e.{{navigationPropertyName ReferencedTableName false}})
+                    {{/each}}
+                    {{/if}}
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.{{pascalCase PrimaryKey.Columns.0.Name}} == id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting {{pascalCase Name}} with ID {Id}", id);
+                throw;
+            }
+        }
+        {{else}}
+        public async Task<{{pascalCase Name}}> GetByIdAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}})
+        {
+            try
+            {
+                return await _context.{{pluralize (pascalCase Name)}}
+                    {{#if Options.IncludeNavigationProperties}}
+                    {{#each ForeignKeys}}
+                    .Include(e => e.{{navigationPropertyName ReferencedTableName false}})
+                    {{/each}}
+                    {{/if}}
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => {{#each PrimaryKey.Columns}}{{#if @index}} && {{/if}}e.{{pascalCase Name}} == {{camelCase Name}}{{/each}});
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting {{pascalCase Name}} with composite key");
+                throw;
+            }
+        }
+        {{/if}}
+        {{else}}
+        // No primary key methods implemented
+        {{/if}}
+        
+        /// <inheritdoc />
+        public async Task<{{pascalCase Name}}> AddAsync({{pascalCase Name}} entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+            
+            try
+            {
+                _context.{{pluralize (pascalCase Name)}}.Add(entity);
+                await _context.SaveChangesAsync();
+                return entity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding {{pascalCase Name}}");
+                throw;
+            }
+        }
+        
+        /// <inheritdoc />
+        public async Task<bool> UpdateAsync({{pascalCase Name}} entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+            
+            try
+            {
+                _context.Entry(entity).State = EntityState.Modified;
+                int rowsAffected = await _context.SaveChangesAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating {{pascalCase Name}}");
+                throw;
+            }
+        }
+        
+        /// <inheritdoc />
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        public async Task<bool> DeleteAsync({{PrimaryKey.Columns.0.CSharpType}} id)
+        {
+            try
+            {
+                var entity = await _context.{{pluralize (pascalCase Name)}}.FindAsync(id);
+                if (entity == null)
+                {
+                    return false;
+                }
+                
+                _context.{{pluralize (pascalCase Name)}}.Remove(entity);
+                int rowsAffected = await _context.SaveChangesAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting {{pascalCase Name}} with ID {Id}", id);
+                throw;
+            }
+        }
+        {{else}}
+        public async Task<bool> DeleteAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}})
+        {
+            try
+            {
+                var entity = await _context.{{pluralize (pascalCase Name)}}.FindAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{camelCase Name}}{{/each}});
+                if (entity == null)
+                {
+                    return false;
+                }
+                
+                _context.{{pluralize (pascalCase Name)}}.Remove(entity);
+                int rowsAffected = await _context.SaveChangesAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting {{pascalCase Name}} with composite key");
+                throw;
+            }
+        }
+        {{/if}}
+        {{else}}
+        public async Task<bool> DeleteAsync({{pascalCase Name}} entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+            
+            try
+            {
+                _context.{{pluralize (pascalCase Name)}}.Remove(entity);
+                int rowsAffected = await _context.SaveChangesAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting {{pascalCase Name}}");
+                throw;
+            }
+        }
+        {{/if}}
+        
+        /// <inheritdoc />
+        public async Task<List<{{pascalCase Name}}Dto>> GetAllDtosAsync()
+        {
+            try
+            {
+                var entities = await _context.{{pluralize (pascalCase Name)}}
+                    .AsNoTracking()
+                    .ToListAsync();
+                
+                return entities.Select(e => e.ToDto()).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all {{pascalCase Name}} DTOs");
+                throw;
+            }
+        }
+        
+        /// <inheritdoc />
+        {{#if HasPrimaryKey}}
+        {{#if PrimaryKey.Columns.length eq 1}}
+        public async Task<{{pascalCase Name}}Dto> GetDtoByIdAsync({{PrimaryKey.Columns.0.CSharpType}} id)
+        {
+            try
+            {
+                var entity = await _context.{{pluralize (pascalCase Name)}}
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.{{pascalCase PrimaryKey.Columns.0.Name}} == id);
+                
+                return entity?.ToDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting {{pascalCase Name}} DTO with ID {Id}", id);
+                throw;
+            }
+        }
+        {{else}}
+        public async Task<{{pascalCase Name}}Dto> GetDtoByIdAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}{{CSharpType}} {{camelCase Name}}{{/each}})
+        {
+            try
+            {
+                var entity = await _context.{{pluralize (pascalCase Name)}}
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => {{#each PrimaryKey.Columns}}{{#if @index}} && {{/if}}e.{{pascalCase Name}} == {{camelCase Name}}{{/each}});
+                
+                return entity?.ToDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting {{pascalCase Name}} DTO with composite key");
+                throw;
+            }
+        }
+        {{/if}}
+        {{else}}
+        // No primary key methods implemented
+        {{/if}}
+        
+        /// <inheritdoc />
+        public async Task<{{pascalCase Name}}Dto> AddFromDtoAsync({{pascalCase Name}}Dto dto)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+            
+            try
+            {
+                var entity = new {{pascalCase Name}}();
+                dto.UpdateEntity(entity);
+                
+                _context.{{pluralize (pascalCase Name)}}.Add(entity);
+                await _context.SaveChangesAsync();
+                
+                return entity.ToDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding {{pascalCase Name}} from DTO");
+                throw;
+            }
+        }
+        
+        /// <inheritdoc />
+        public async Task<bool> UpdateFromDtoAsync({{pascalCase Name}}Dto dto)
+        {
+            if (dto == null)
+            {
+                throw new ArgumentNullException(nameof(dto));
+            }
+            
+            try
+            {
+                {{#if HasPrimaryKey}}
+                {{#if PrimaryKey.Columns.length eq 1}}
+                var entity = await _context.{{pluralize (pascalCase Name)}}.FindAsync(dto.{{pascalCase PrimaryKey.Columns.0.Name}});
+                {{else}}
+                var entity = await _context.{{pluralize (pascalCase Name)}}.FindAsync({{#each PrimaryKey.Columns}}{{#if @index}}, {{/if}}dto.{{pascalCase Name}}{{/each}});
+                {{/if}}
+                {{else}}
+                // No primary key, try to find by all properties
+                var entity = await _context.{{pluralize (pascalCase Name)}}.FirstOrDefaultAsync(e => 
+                    {{#each Columns}}
+                    {{#if @index}} && {{/if}}e.{{pascalCase Name}} == dto.{{pascalCase Name}}
+                    {{/each}});
+                {{/if}}
+                
+                if (entity == null)
+                {
+                    return false;
+                }
+                
+                dto.UpdateEntity(entity);
+                
+                _context.Entry(entity).State = EntityState.Modified;
+                int rowsAffected = await _context.SaveChangesAsync();
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating {{pascalCase Name}} from DTO");
+                throw;
+            }
+        }
+    }
+}

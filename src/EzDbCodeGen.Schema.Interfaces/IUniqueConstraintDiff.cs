@@ -8,12 +8,12 @@ public interface IUniqueConstraintDiff
     /// <summary>
     /// Gets the original unique constraint.
     /// </summary>
-    IUniqueConstraint Original { get; }
+    IUniqueConstraint? Original { get; }
     
     /// <summary>
     /// Gets the new unique constraint.
     /// </summary>
-    IUniqueConstraint New { get; }
+    IUniqueConstraint? New { get; }
     
     /// <summary>
     /// Gets a value indicating whether the unique constraint has changed.
@@ -34,4 +34,9 @@ public interface IUniqueConstraintDiff
     /// Gets a value indicating whether the clustering of the unique constraint has changed.
     /// </summary>
     bool IsClusteredChanged { get; }
+    
+    /// <summary>
+    /// Gets a value indicating whether the name of the unique constraint has changed.
+    /// </summary>
+    bool NameChanged { get; }
 }

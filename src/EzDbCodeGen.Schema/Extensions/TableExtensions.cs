@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using EzDbCodeGen.Schema.Interfaces;
 
 namespace EzDbCodeGen.Schema.Extensions;
@@ -96,5 +97,27 @@ public static class TableExtensions
     {
         char lower = char.ToLower(c);
         return lower == 'a' || lower == 'e' || lower == 'i' || lower == 'o' || lower == 'u';
+    }
+    
+    /// <summary>
+    /// Gets a column by name from the table.
+    /// </summary>
+    /// <param name="table">The table.</param>
+    /// <param name="columnName">The name of the column to get.</param>
+    /// <returns>The column if found; otherwise, null.</returns>
+    public static IColumn? GetColumn(this ITable table, string columnName)
+    {
+        if (table == null)
+        {
+            throw new ArgumentNullException(nameof(table));
+        }
+        
+        if (string.IsNullOrEmpty(columnName))
+        {
+            return null;
+        }
+        
+        return table.Columns.FirstOrDefault(c => 
+            string.Equals(c.Name, columnName, StringComparison.OrdinalIgnoreCase));
     }
 }

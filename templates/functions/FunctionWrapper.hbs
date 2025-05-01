@@ -1,0 +1,84 @@
+{{!--
+FunctionWrapper.hbs - Template for generating wrappers for database functions
+This template creates strongly-typed wrapper classes for both scalar and table-valued functions,
+with proper parameter handling and result mapping.
+--}}
+{{#formatEz layout="standard"}}
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+using Dapper;
+
+namespace {{namespace}}.Data.Functions
+{
+    {{#docEz format="xml" description=(or function.Description (formatEz value=(string "Wrapper for " function.Name " database function")))}}
+    public class {{formatEz case="pascal" value=function.Name}}Function
+    {
+        private readonly string _connectionString;
+
+        {{#docEz format="xml" description=(formatEz value=(string "Initializes a new instance of the " (formatEz case="pascal" value=function.Name) "Function class"))}}
+        {{#docEz format="xml" paramName="connectionString" paramDesc="The database connection string."}}
+        public {{formatEz case="pascal" value=function.Name}}Function(string connectionString)
+        {
+            _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        }
+
+        {{#if function.IsTableValued}}
+        {{#docEz format="xml" description="Executes the table-valued function and returns the results."}}
+        {{#each function.Parameters}}
+        {{#docEz format="xml" paramName=(formatEz case="camel" value=name) paramDesc=(or description (formatEz value=(string "The " name " parameter")))}}
+        {{/each}}
+        {{#docEz format="xml" returns="A collection of results from the function."}}
+        public async Task<IEnumerable<{{formatEz case="pascal" value=function.Name}}Result>> ExecuteAsync({{#each function.Parameters}}{{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}})
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                
+                var sql = "SELECT * FROM [{{function.Schema}}].[{{function.Name}}]({{#each function.Parameters}}@{{name}}{{#unless @last}}, {{/unless}}{{/each}})";
+                
+                return await connection.QueryAsync<{{formatEz case="pascal" value=function.Name}}Result>(
+                    sql,
+                    new { {{#each function.Parameters}}{{name}} = {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}} });
+            }
+        }
+        {{else}}
+        {{#docEz format="xml" description="Executes the scalar function and returns the result."}}
+        {{#each function.Parameters}}
+        {{#docEz format="xml" paramName=(formatEz case="camel" value=name) paramDesc=(or description (formatEz value=(string "The " name " parameter")))}}
+        {{/each}}
+        {{#docEz format="xml" returns="The scalar result of the function."}}
+        public async Task<{{convertTypeEz sqlType=function.ReturnType lang="csharp" nullable=false}}> ExecuteAsync({{#each function.Parameters}}{{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}})
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                
+                var sql = "SELECT [{{function.Schema}}].[{{function.Name}}]({{#each function.Parameters}}@{{name}}{{#unless @last}}, {{/unless}}{{/each}})";
+                
+                return await connection.ExecuteScalarAsync<{{convertTypeEz sqlType=function.ReturnType lang="csharp" nullable=false}}>(
+                    sql,
+                    new { {{#each function.Parameters}}{{name}} = {{formatEz case="camel" value=name}}{{#unless @last}}, {{/unless}}{{/each}} });
+            }
+        }
+        {{/if}}
+    }
+
+    {{#if function.IsTableValued}}
+    {{#docEz format="xml" description=(formatEz value=(string "Result class for " function.Name " table-valued function"))}}
+    public class {{formatEz case="pascal" value=function.Name}}Result
+    {
+        {{#each function.ResultColumns}}
+        {{#docEz format="xml" description=(or description (formatEz value=(string "Gets or sets the " (formatEz case="pascal" value=name) " property")))}}
+        {{#if isRequired}}[Required]{{/if}}
+        {{#if maxLength}}[MaxLength({{maxLength}})]{{/if}}
+        {{#if columnName}}[Column("{{columnName}}")]{{/if}}
+        public {{convertTypeEz sqlType=dataType lang="csharp" nullable=isNullable precision=precision scale=scale maxLength=maxLength}} {{formatEz case="pascal" value=name}} { get; set; }
+        
+        {{/each}}
+    }
+    {{/if}}
+}
+{{/formatEz}}

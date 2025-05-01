@@ -1,0 +1,78 @@
+{{!--
+EntityModel.hbs - Template for generating EF Core entity models
+This template generates a strongly-typed C# class for an Entity Framework Core model
+including navigation properties based on detected relationships.
+--}}
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace {{namespace}}.Models
+{
+    /// <summary>
+    /// {{#if table.Description}}{{table.Description}}{{else}}Represents the {{table.Name}} entity{{/if}}
+    /// </summary>
+    [Table("{{table.Name}}", Schema = "{{table.Schema}}")]
+    {{#if table.Indexes}}
+    {{#each table.Indexes}}
+    [Index({{#each Columns}}nameof({{Column.Name}}){{#unless @last}}, {{/unless}}{{/each}}{{#if IsUnique}}, IsUnique = true{{/if}})]
+    {{/each}}
+    {{/if}}
+    public partial class {{className}}
+    {
+        {{#if hasCollectionProperties}}
+        public {{className}}()
+        {
+            {{#each collectionProperties}}
+            {{propertyName}} = new HashSet<{{typeName}}>();
+            {{/each}}
+        }
+        {{/if}}
+
+        {{#each columns}}
+        {{#if isPrimaryKey}}
+        [Key]
+        {{/if}}
+        {{#if isIdentity}}
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        {{/if}}
+        {{#if isComputed}}
+        [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
+        {{/if}}
+        {{#if maxLength}}
+        [StringLength({{maxLength}})]
+        {{/if}}
+        {{#if isRequired}}
+        [Required]
+        {{/if}}
+        {{#if hasColumnName}}
+        [Column("{{columnName}}")]
+        {{/if}}
+        {{#if description}}
+        /// <summary>
+        /// {{description}}
+        /// </summary>
+        {{/if}}
+        public {{typeName}} {{propertyName}} { get; set; }{{#if isNullable}}?{{/if}}
+        
+        {{/each}}
+
+        {{#if navigationProperties}}
+        // Navigation properties
+        {{#each navigationProperties}}
+        {{#if description}}
+        /// <summary>
+        /// {{description}}
+        /// </summary>
+        {{/if}}
+        {{#if isForeignKey}}
+        [ForeignKey("{{foreignKeyName}}")]
+        {{/if}}
+        public {{#if isCollection}}ICollection<{{/if}}{{typeName}}{{#if isCollection}}>{{/if}} {{propertyName}} { get; set; }{{#if isNullable}}?{{/if}}
+        
+        {{/each}}
+        {{/if}}
+    }
+}

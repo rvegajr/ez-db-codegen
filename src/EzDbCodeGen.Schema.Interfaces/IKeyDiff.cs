@@ -8,12 +8,12 @@ public interface IKeyDiff
     /// <summary>
     /// Gets the original key.
     /// </summary>
-    IKey Original { get; }
+    IKey? Original { get; }
     
     /// <summary>
     /// Gets the new key.
     /// </summary>
-    IKey New { get; }
+    IKey? New { get; }
     
     /// <summary>
     /// Gets a value indicating whether the key has changed.

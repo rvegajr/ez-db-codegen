@@ -8,12 +8,12 @@ public interface IRelationship
     /// <summary>
     /// Gets the source table of the relationship.
     /// </summary>
-    ITable SourceTable { get; }
+    ITable? SourceTable { get; }
     
     /// <summary>
     /// Gets the target table of the relationship.
     /// </summary>
-    ITable TargetTable { get; }
+    ITable? TargetTable { get; }
     
     /// <summary>
     /// Gets the type of the relationship.
