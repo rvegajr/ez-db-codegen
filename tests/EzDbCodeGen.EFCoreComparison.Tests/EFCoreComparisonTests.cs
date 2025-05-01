@@ -18,7 +18,7 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
         private readonly EFCoreModelComparer _modelComparer;
 
         // Connection string for test database - should be configurable
-        private const string TestConnectionString = "Server=(localdb)\\MSSQLLocalDB;Database=AdventureWorks;Trusted_Connection=True;TrustServerCertificate=True;";
+        private const string TestConnectionString = "Server=localhost;Database=master;User Id=sa;Password=APADemo123!;TrustServerCertificate=True;";
 
         public EFCoreComparisonTests(ITestOutputHelper output)
         {
@@ -27,7 +27,7 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
             _modelComparer = new EFCoreModelComparer(_logger);
         }
 
-        [Fact(Skip = "Requires database connection")]
+        [Fact]
         public void Should_Analyze_EFCore_Relationships()
         {
             // Arrange
@@ -47,7 +47,7 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
             }
         }
 
-        [Fact(Skip = "Requires database connection")]
+        [Fact]
         public void Should_Analyze_EFCore_Column_Types()
         {
             // Arrange
