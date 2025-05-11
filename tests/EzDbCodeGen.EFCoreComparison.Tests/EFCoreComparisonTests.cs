@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,7 +19,16 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
         private readonly EFCoreModelComparer _modelComparer;
 
         // Connection string for test database - should be configurable
-        private const string TestConnectionString = "Server=localhost;Database=master;User Id=sa;Password=APADemo123!;TrustServerCertificate=True;";
+        private const string BaseConnectionString = "Server=localhost;User Id=sa;Password=APADemo123!;TrustServerCertificate=True;";
+
+        // List of sample databases to test
+        private static readonly string[] SampleDatabases = new[]
+        {
+            "Northwind",
+            "AdventureWorks",
+            "WideWorldImporters",
+            "ContosoDataWarehouse"
+        };
 
         public EFCoreComparisonTests(ITestOutputHelper output)
         {
@@ -27,50 +37,152 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
             _modelComparer = new EFCoreModelComparer(_logger);
         }
 
-        [Fact]
-        public void Should_Analyze_EFCore_Relationships()
+        [Theory]
+        [InlineData("Northwind")]
+        [InlineData("AdventureWorks")]
+        [InlineData("WideWorldImporters")]
+        [InlineData("ContosoDataWarehouse")]
+        public void Should_Analyze_EFCore_Relationships(string databaseName)
         {
             // Arrange
-            var dbContext = new AdventureWorksContext(TestConnectionString);
+            var connectionString = $"{BaseConnectionString}Database={databaseName};";
+            var dbContext = CreateDbContext(databaseName, connectionString);
 
             // Act
+            var stopwatch = Stopwatch.StartNew();
             var relationships = _modelComparer.AnalyzeEFCoreRelationships(dbContext);
+            stopwatch.Stop();
 
             // Assert
             relationships.Should().NotBeEmpty();
-            _output.WriteLine($"Found {relationships.Count} relationships in EF Core model");
+            _output.WriteLine($"Found {relationships.Count} relationships in EF Core model for {databaseName}");
+            _output.WriteLine($"EF Core relationship analysis took {stopwatch.ElapsedMilliseconds}ms");
 
-            // Output details of relationships
-            foreach (var relationship in relationships)
+            // Output details of relationships (limit to first 20 for readability)
+            foreach (var relationship in relationships.Take(20))
             {
                 _output.WriteLine($"Relationship: {relationship}");
             }
         }
 
-        [Fact]
-        public void Should_Analyze_EFCore_Column_Types()
+        [Theory]
+        [InlineData("Northwind")]
+        [InlineData("AdventureWorks")]
+        [InlineData("WideWorldImporters")]
+        [InlineData("ContosoDataWarehouse")]
+        public void Should_Analyze_EFCore_Column_Types(string databaseName)
         {
             // Arrange
-            var dbContext = new AdventureWorksContext(TestConnectionString);
+            var connectionString = $"{BaseConnectionString}Database={databaseName};";
+            var dbContext = CreateDbContext(databaseName, connectionString);
 
             // Act
+            var stopwatch = Stopwatch.StartNew();
             var columnTypes = _modelComparer.AnalyzeEFCoreColumnTypes(dbContext);
+            stopwatch.Stop();
 
             // Assert
             columnTypes.Should().NotBeEmpty();
-            _output.WriteLine($"Found {columnTypes.Count} columns in EF Core model");
+            _output.WriteLine($"Found {columnTypes.Count} columns in EF Core model for {databaseName}");
+            _output.WriteLine($"EF Core column type analysis took {stopwatch.ElapsedMilliseconds}ms");
 
-            // Output details of column types
-            foreach (var (column, type) in columnTypes)
+            // Output details of column types (limit to first 20 for readability)
+            foreach (var (column, type) in columnTypes.Take(20))
             {
                 _output.WriteLine($"Column: {column}, Type: {type}");
             }
         }
+
+        [Theory]
+        [InlineData("Northwind")]
+        [InlineData("AdventureWorks")]
+        [InlineData("WideWorldImporters")]
+        [InlineData("ContosoDataWarehouse")]
+        public void Should_Compare_EFCore_And_EzDbCodeGen_Performance(string databaseName)
+        {
+            // Arrange
+            var connectionString = $"{BaseConnectionString}Database={databaseName};";
+            var dbContext = CreateDbContext(databaseName, connectionString);
+
+            // Act & Assert - EF Core Performance
+            var efCoreStopwatch = Stopwatch.StartNew();
+            var efCoreModel = dbContext.Model;
+            var entityTypes = efCoreModel.GetEntityTypes().ToList();
+            efCoreStopwatch.Stop();
+
+            _output.WriteLine($"EF Core schema discovery for {databaseName} took {efCoreStopwatch.ElapsedMilliseconds}ms");
+            _output.WriteLine($"EF Core discovered {entityTypes.Count} entity types");
+
+            // TODO: Add EzDbCodeGen performance comparison here
+            // This will be implemented once we have the EzDbCodeGen schema discovery code
+
+            // For now, just output the entity types discovered by EF Core (limit to first 20)
+            foreach (var entityType in entityTypes.Take(20))
+            {
+                _output.WriteLine($"Entity: {entityType.Name}, Table: {entityType.GetTableName()}");
+                
+                // Output properties (limit to first 5 per entity)
+                foreach (var property in entityType.GetProperties().Take(5))
+                {
+                    _output.WriteLine($"  - Property: {property.Name}, Type: {property.ClrType.Name}, Column: {property.GetColumnName()}");
+                }
+            }
+        }
+
+        private DbContext CreateDbContext(string databaseName, string connectionString)
+        {
+            switch (databaseName)
+            {
+                case "Northwind":
+                    return new NorthwindContext(connectionString);
+                case "AdventureWorks":
+                    return new AdventureWorksContext(connectionString);
+                case "WideWorldImporters":
+                    return new WideWorldImportersContext(connectionString);
+                case "ContosoDataWarehouse":
+                    return new ContosoDataWarehouseContext(connectionString);
+                default:
+                    throw new ArgumentException($"Unknown database name: {databaseName}", nameof(databaseName));
+            }
+        }
     }
 
-    /// <summary>
-    /// Sample DbContext for AdventureWorks database
-    /// </summary>
+    // Sample DbContext classes for each database
+    public class NorthwindContext : DbContext
+    {
+        private readonly string _connectionString;
+
+        public NorthwindContext(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlServer(_connectionString);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // For Northwind database
+            modelBuilder.Entity<Customer>()
+                .ToTable("Customers")
+                .HasKey(c => c.CustomerID);
+
+            modelBuilder.Entity<Order>()
+                .ToTable("Orders")
+                .HasKey(o => o.OrderID);
+
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Customer)
+                .WithMany(c => c.Orders)
+                .HasForeignKey(o => o.CustomerID);
+        }
+
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+    }
+
     public class AdventureWorksContext : DbContext
     {
         private readonly string _connectionString;
@@ -87,10 +199,7 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // This would be populated by EF Core's reverse engineering process
-            // For testing purposes, we'll scaffold this manually or use EF Core's scaffolding tools
-            
-            // Example of manual configuration:
+            // For AdventureWorks database
             modelBuilder.Entity<Person>()
                 .ToTable("Person", "Person")
                 .HasKey(p => p.BusinessEntityID);
@@ -105,12 +214,103 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
                 .HasForeignKey<Employee>(e => e.BusinessEntityID);
         }
         
-        // Sample entity classes for AdventureWorks
         public DbSet<Person> People { get; set; } = null!;
         public DbSet<Employee> Employees { get; set; } = null!;
     }
+
+    public class WideWorldImportersContext : DbContext
+    {
+        private readonly string _connectionString;
+
+        public WideWorldImportersContext(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlServer(_connectionString);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // For WideWorldImporters database
+            modelBuilder.Entity<Customer>()
+                .ToTable("Customers", "Sales")
+                .HasKey(c => c.CustomerID);
+
+            modelBuilder.Entity<Order>()
+                .ToTable("Orders", "Sales")
+                .HasKey(o => o.OrderID);
+
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Customer)
+                .WithMany(c => c.Orders)
+                .HasForeignKey(o => o.CustomerID);
+        }
+
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+    }
+
+    public class ContosoDataWarehouseContext : DbContext
+    {
+        private readonly string _connectionString;
+
+        public ContosoDataWarehouseContext(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.UseSqlServer(_connectionString);
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // For ContosoDataWarehouse database
+            // This is a simplified model for testing purposes
+            modelBuilder.Entity<DimCustomer>()
+                .ToTable("DimCustomer")
+                .HasKey(c => c.CustomerKey);
+
+            modelBuilder.Entity<FactSales>()
+                .ToTable("FactSales")
+                .HasKey(s => s.SalesKey);
+
+            modelBuilder.Entity<FactSales>()
+                .HasOne(s => s.Customer)
+                .WithMany(c => c.Sales)
+                .HasForeignKey(s => s.CustomerKey);
+        }
+
+        public DbSet<DimCustomer> Customers { get; set; } = null!;
+        public DbSet<FactSales> Sales { get; set; } = null!;
+    }
+
+    // Sample entity classes for Northwind
+    public class Customer
+    {
+        public string CustomerID { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string ContactName { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        
+        public ICollection<Order> Orders { get; set; } = new List<Order>();
+    }
     
-    // Sample entity classes
+    public class Order
+    {
+        public int OrderID { get; set; }
+        public string CustomerID { get; set; } = string.Empty;
+        public DateTime OrderDate { get; set; }
+        public decimal? Freight { get; set; }
+        
+        public Customer Customer { get; set; } = null!;
+    }
+
+    // Sample entity classes for AdventureWorks
     public class Person
     {
         public int BusinessEntityID { get; set; }
@@ -125,6 +325,26 @@ namespace EzDbCodeGen.EFCoreComparison.Tests
         public string JobTitle { get; set; } = string.Empty;
         
         public Person Person { get; set; } = null!;
+    }
+
+    // Sample entity classes for ContosoDataWarehouse
+    public class DimCustomer
+    {
+        public int CustomerKey { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string CustomerType { get; set; } = string.Empty;
+        
+        public ICollection<FactSales> Sales { get; set; } = new List<FactSales>();
+    }
+    
+    public class FactSales
+    {
+        public int SalesKey { get; set; }
+        public int CustomerKey { get; set; }
+        public DateTime OrderDate { get; set; }
+        public decimal SalesAmount { get; set; }
+        
+        public DimCustomer Customer { get; set; } = null!;
     }
 
     /// <summary>

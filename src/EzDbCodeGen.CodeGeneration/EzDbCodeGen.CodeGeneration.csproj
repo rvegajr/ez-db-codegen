@@ -5,6 +5,7 @@
     <ProjectReference Include="..\EzDbCodeGen.Schema\EzDbCodeGen.Schema.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.TypeMapping\EzDbCodeGen.TypeMapping.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.TemplateEngine\EzDbCodeGen.TemplateEngine.csproj" />
+    <ProjectReference Include="..\EzDbCodeGen.Common.Interfaces\EzDbCodeGen.Common.Interfaces.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

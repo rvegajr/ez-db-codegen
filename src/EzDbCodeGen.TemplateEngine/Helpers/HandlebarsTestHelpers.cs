@@ -2,30 +2,33 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
 using HandlebarsDotNet;
+
+#nullable enable
 
 namespace EzDbCodeGen.TemplateEngine.Helpers
 {
     /// <summary>
     /// Handlebars helpers for generating test values and other testing utilities.
     /// </summary>
-    public static class HandlebarsTestHelpers
+    public class HandlebarsTestHelpers : ITestHelpers, IHelperRegistration
     {
         private static readonly Random _random = new Random();
         
         /// <summary>
-        /// Registers all test helpers with the Handlebars instance.
+        /// Registers all test helpers with the template engine.
         /// </summary>
-        /// <param name="handlebars">The Handlebars instance to register helpers with.</param>
-        public static void RegisterHelpers(IHandlebars handlebars)
+        public void RegisterHelpers(ITemplateEngine templateEngine)
         {
-            if (handlebars == null)
+            if (templateEngine == null)
             {
-                throw new ArgumentNullException(nameof(handlebars));
+                throw new ArgumentNullException(nameof(templateEngine));
             }
             
             // Register the getTestValue helper
-            handlebars.RegisterHelper("getTestValue", (writer, context, parameters) =>
+            templateEngine.RegisterHelper("getTestValue", (writer, context, parameters) =>
             {
                 if (parameters.Length < 1)
                 {
@@ -40,7 +43,7 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
             });
             
             // Register the pluralize helper
-            handlebars.RegisterHelper("pluralize", (writer, context, parameters) =>
+            templateEngine.RegisterHelper("pluralize", (writer, context, parameters) =>
             {
                 if (parameters.Length < 1)
                 {
@@ -53,7 +56,7 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
             });
             
             // Register the navigationPropertyName helper
-            handlebars.RegisterHelper("navigationPropertyName", (writer, context, parameters) =>
+            templateEngine.RegisterHelper("navigationPropertyName", (writer, context, parameters) =>
             {
                 if (parameters.Length < 2)
                 {
@@ -75,7 +78,7 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
         /// <param name="type">The C# type to generate a test value for.</param>
         /// <param name="seed">A seed value to generate unique test values.</param>
         /// <returns>A string representation of a test value.</returns>
-        private static string GenerateTestValue(string type, int seed)
+        public string GenerateTestValue(string type, int seed)
         {
             if (string.IsNullOrEmpty(type))
             {
@@ -102,33 +105,26 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
                     
                 case "long":
                 case "int64":
-                    return (seed * 10000).ToString() + "L";
-                    
-                case "short":
-                case "int16":
-                    return ((short)(seed * 10)).ToString();
-                    
-                case "byte":
-                    return ((byte)(seed % 256)).ToString();
+                    return (seed * 10000L).ToString() + "L";
                     
                 case "decimal":
-                    return $"{seed * 100.5m}m";
+                    return (seed * 100.5m).ToString() + "m";
                     
                 case "double":
-                    return $"{seed * 100.5}d";
+                    return (seed * 100.5).ToString() + "d";
                     
                 case "float":
-                    return $"{seed * 100.5f}f";
+                    return (seed * 100.5f).ToString() + "f";
                     
                 case "bool":
                 case "boolean":
                     return (seed % 2 == 0).ToString().ToLowerInvariant();
                     
                 case "datetime":
-                    return $"DateTime.Parse(\"2023-{(seed % 12) + 1:D2}-{(seed % 28) + 1:D2}\")";
+                    return $"DateTime.Parse(\"{DateTime.Now.AddDays(seed).ToString("yyyy-MM-dd")}\")";
                     
                 case "datetimeoffset":
-                    return $"DateTimeOffset.Parse(\"2023-{(seed % 12) + 1:D2}-{(seed % 28) + 1:D2}T12:00:00+00:00\")";
+                    return $"DateTimeOffset.Parse(\"{DateTimeOffset.Now.AddDays(seed).ToString("yyyy-MM-dd")}\")";
                     
                 case "timespan":
                     return $"TimeSpan.FromHours({seed})";
@@ -150,7 +146,7 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
         /// </summary>
         /// <param name="word">The word to pluralize.</param>
         /// <returns>The pluralized word.</returns>
-        private static string Pluralize(string word)
+        public string Pluralize(string word)
         {
             if (string.IsNullOrEmpty(word))
             {
@@ -213,28 +209,25 @@ namespace EzDbCodeGen.TemplateEngine.Helpers
         /// <param name="isCollection">Whether the navigation property is a collection.</param>
         /// <param name="suffix">Optional suffix to add to the property name.</param>
         /// <returns>A properly formatted navigation property name.</returns>
-        private static string GenerateNavigationPropertyName(string tableName, bool isCollection, string suffix = null)
+        public string GenerateNavigationPropertyName(string tableName, bool isCollection, string? suffix = null)
         {
             if (string.IsNullOrEmpty(tableName))
             {
                 return string.Empty;
             }
-            
-            // Convert to PascalCase if it's not already
-            string propertyName = char.ToUpperInvariant(tableName[0]) + tableName.Substring(1);
-            
-            // Add suffix if provided
+
+            var stringHelpers = new HandlebarsStringFormatHelpers();
+            var propertyName = stringHelpers.ToPascalCase(tableName);
+            if (isCollection)
+            {
+                propertyName = stringHelpers.Pluralize(propertyName);
+            }
+
             if (!string.IsNullOrEmpty(suffix))
             {
                 propertyName += suffix;
             }
-            
-            // Pluralize if it's a collection
-            if (isCollection && string.IsNullOrEmpty(suffix))
-            {
-                propertyName = Pluralize(propertyName);
-            }
-            
+
             return propertyName;
         }
     }

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using EzDbCodeGen.CodeGen.Interfaces;
+using EzDbCodeGen.Core.Interfaces.Logging;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
 
 namespace EzDbCodeGen.TemplateEngine;
 
@@ -15,20 +17,7 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
     private readonly ITemplateProcessor _baseProcessor;
     private readonly Dictionary<string, string> _previousOutputs = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ITemplateFilter> _filters = new();
-    
-    /// <summary>
-    /// Gets the template engine used by this processor.
-    /// </summary>
-    public ITemplateEngine TemplateEngine => _baseProcessor.TemplateEngine;
-    
-    /// <summary>
-    /// Gets or sets the base path for resolving relative template paths.
-    /// </summary>
-    public string BasePath
-    {
-        get => _baseProcessor.BasePath;
-        set => _baseProcessor.BasePath = value;
-    }
+    private readonly Dictionary<string, DateTime> _lastWriteTimes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DifferentialTemplateProcessor"/> class.
@@ -59,7 +48,46 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
     }
 
     /// <inheritdoc/>
-    public string ProcessTemplate(string templatePath, object dataModel)
+    public string Process(string templateContent, object dataModel)
+    {
+        if (string.IsNullOrEmpty(templateContent))
+        {
+            throw new ArgumentNullException(nameof(templateContent));
+        }
+        
+        var templateKey = GetTemplateKey(templateContent.GetHashCode().ToString(), dataModel);
+        
+        try
+        {
+            // Check if we've processed this content before with the same model
+            if (_previousOutputs.TryGetValue(templateKey, out var previousOutput))
+            {
+                _logger.LogDebug("Template content has not changed - reusing previous output");
+                return previousOutput;
+            }
+            
+            _logger.LogDebug("Processing new template content");
+            
+            // Process the template using the base processor
+            var output = _baseProcessor.Process(templateContent, dataModel);
+            
+            // Apply any filters
+            output = ApplyFilters(output, templateContent.GetHashCode().ToString());
+            
+            // Store the output for future comparison
+            _previousOutputs[templateKey] = output;
+            
+            return output;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error in differential processing of template content: {ex.Message}");
+            throw new TemplateProcessingException("Error in differential processing of template content", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public string ProcessFile(string templatePath, object dataModel)
     {
         if (string.IsNullOrEmpty(templatePath))
         {
@@ -80,7 +108,7 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
             _logger.LogDebug($"Processing changed template {templatePath}");
             
             // Process the template using the base processor
-            var output = _baseProcessor.ProcessTemplate(templatePath, dataModel);
+            var output = _baseProcessor.ProcessFile(templatePath, dataModel);
             
             // Apply any filters
             output = ApplyFilters(output, templatePath);
@@ -98,99 +126,74 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
     }
 
     /// <inheritdoc/>
-    public string ProcessTemplateContent(string templateContent, object dataModel)
+    public string ProcessFile(string templatePath, string outputPath, object dataModel)
     {
-        if (string.IsNullOrEmpty(templateContent))
-        {
-            throw new ArgumentNullException(nameof(templateContent));
-        }
+        var result = ProcessFile(templatePath, dataModel);
         
-        var templateKey = GetTemplateKey(templateContent.GetHashCode().ToString(), dataModel);
-        
-        try
+        if (!string.IsNullOrEmpty(result) && !string.IsNullOrEmpty(outputPath))
         {
-            // Check if we've processed this content before with the same model
-            if (_previousOutputs.TryGetValue(templateKey, out var previousOutput))
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
-                _logger.LogDebug("Template content has not changed - reusing previous output");
-                return previousOutput;
+                Directory.CreateDirectory(directory);
             }
             
-            _logger.LogDebug("Processing new template content");
-            
-            // Process the template content using the base processor
-            var output = _baseProcessor.ProcessTemplateContent(templateContent, dataModel);
-            
-            // Apply any filters
-            output = ApplyFilters(output, null);
-            
-            // Store the output for future comparison
-            _previousOutputs[templateKey] = output;
-            
-            return output;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Error in differential processing of template content: {ex.Message}");
-            throw new TemplateProcessingException("Error in differential processing of template content", ex);
-        }
-    }
-
-    /// <inheritdoc/>
-    public string ProcessLayout(string layoutTemplatePath, string bodyContent, object dataModel)
-    {
-        if (string.IsNullOrEmpty(layoutTemplatePath))
-        {
-            throw new ArgumentNullException(nameof(layoutTemplatePath));
+            File.WriteAllText(outputPath, result);
+            _logger.LogDebug($"Wrote output to: {outputPath}");
         }
         
-        var templateKey = GetTemplateKey($"{layoutTemplatePath}:{bodyContent.GetHashCode()}", dataModel);
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public IDictionary<string, string> ProcessFiles(IEnumerable<string> templatePaths, object dataModel)
+    {
+        if (templatePaths == null)
+        {
+            throw new ArgumentNullException(nameof(templatePaths));
+        }
         
-        try
+        var results = new Dictionary<string, string>();
+        
+        foreach (var templatePath in templatePaths)
         {
-            // Check if we've processed this layout with the same body and model before
-            if (_previousOutputs.TryGetValue(templateKey, out var previousOutput))
-            {
-                _logger.LogDebug($"Layout {layoutTemplatePath} with the same body has not changed - reusing previous output");
-                return previousOutput;
-            }
-            
-            _logger.LogDebug($"Processing layout {layoutTemplatePath} with new body content");
-            
-            // Process the layout using the base processor
-            var output = _baseProcessor.ProcessLayout(layoutTemplatePath, bodyContent, dataModel);
-            
-            // Apply any filters
-            output = ApplyFilters(output, layoutTemplatePath);
-            
-            // Store the output for future comparison
-            _previousOutputs[templateKey] = output;
-            
-            return output;
+            var result = ProcessFile(templatePath, dataModel);
+            results[templatePath] = result;
         }
-        catch (Exception ex)
+        
+        return results;
+    }
+    
+    /// <inheritdoc/>
+    public IDictionary<string, string> ProcessFiles(IEnumerable<string> templatePaths, string outputDirectory, object dataModel)
+    {
+        if (templatePaths == null)
         {
-            _logger.LogError($"Error in differential processing of layout {layoutTemplatePath}: {ex.Message}");
-            throw new TemplateProcessingException($"Error in differential processing of layout {layoutTemplatePath}", ex);
+            throw new ArgumentNullException(nameof(templatePaths));
         }
-    }
-
-    /// <inheritdoc/>
-    public void RegisterHelper(string name, Delegate helper)
-    {
-        _baseProcessor.RegisterHelper(name, helper);
-    }
-
-    /// <inheritdoc/>
-    public void RegisterBlockHelper(string name, Delegate helper)
-    {
-        _baseProcessor.RegisterBlockHelper(name, helper);
-    }
-
-    /// <inheritdoc/>
-    public void RegisterPartial(string name, string templatePath)
-    {
-        _baseProcessor.RegisterPartial(name, templatePath);
+        
+        if (string.IsNullOrEmpty(outputDirectory))
+        {
+            throw new ArgumentNullException(nameof(outputDirectory));
+        }
+        
+        var results = new Dictionary<string, string>();
+        
+        if (!Directory.Exists(outputDirectory))
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+        
+        foreach (var templatePath in templatePaths)
+        {
+            var fileName = Path.GetFileName(templatePath);
+            var outputPath = Path.Combine(outputDirectory, fileName);
+            
+            var result = ProcessFile(templatePath, outputPath, dataModel);
+            results[templatePath] = result;
+        }
+        
+        return results;
     }
     
     /// <summary>
@@ -237,11 +240,8 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
         {
             try
             {
-                // Apply the filter only if it should be applied to this template
-                if (filter.ShouldApply(templatePath))
-                {
-                    output = filter.Apply(output);
-                }
+                // Apply the filter
+                output = filter.Filter(output);
             }
             catch (Exception ex)
             {
@@ -259,6 +259,4 @@ public class DifferentialTemplateProcessor : ITemplateProcessor
         var modelHash = dataModel?.GetHashCode() ?? 0;
         return $"{templateIdentifier}:{modelHash}";
     }
-    
-    private readonly Dictionary<string, DateTime> _lastWriteTimes = new(StringComparer.OrdinalIgnoreCase);
 }

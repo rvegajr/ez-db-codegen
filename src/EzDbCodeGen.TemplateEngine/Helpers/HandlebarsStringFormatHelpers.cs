@@ -1,8 +1,11 @@
 using System;
 using System.Text;
 using System.Text.RegularExpressions;
-using EzDbCodeGen.Core.TemplateEngine.Helpers;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
 using HandlebarsDotNet;
+
+#nullable enable
 
 namespace EzDbCodeGen.TemplateEngine
 {
@@ -15,50 +18,60 @@ namespace EzDbCodeGen.TemplateEngine
         public void RegisterHelpers(ITemplateEngine templateEngine)
         {
             // Register camelCase helper
-            templateEngine.RegisterHelper("camelCase", (context) => {
-                if (context == null) return string.Empty;
-                return ToCamelCase(context.ToString());
+            templateEngine.RegisterHelper("camelCase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToCamelCase(value.ToString()));
             });
 
             // Register PascalCase helper
-            templateEngine.RegisterHelper("pascalCase", (context) => {
-                if (context == null) return string.Empty;
-                return ToPascalCase(context.ToString());
+            templateEngine.RegisterHelper("pascalCase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToPascalCase(value.ToString()));
             });
 
             // Register snake_case helper
-            templateEngine.RegisterHelper("snakeCase", (context) => {
-                if (context == null) return string.Empty;
-                return ToSnakeCase(context.ToString());
+            templateEngine.RegisterHelper("snakeCase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToSnakeCase(value.ToString()));
             });
 
             // Register kebab-case helper
-            templateEngine.RegisterHelper("kebabCase", (context) => {
-                if (context == null) return string.Empty;
-                return ToKebabCase(context.ToString());
+            templateEngine.RegisterHelper("kebabCase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToKebabCase(value.ToString()));
             });
 
             // Register trim helper
-            templateEngine.RegisterHelper("trim", (context) => {
-                if (context == null) return string.Empty;
-                return context.ToString().Trim();
+            templateEngine.RegisterHelper("trim", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(value.ToString().Trim());
             });
 
             // Register lowercase helper
-            templateEngine.RegisterHelper("lowercase", (context) => {
-                if (context == null) return string.Empty;
-                return context.ToString().ToLowerInvariant();
+            templateEngine.RegisterHelper("lowercase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToLowerCase(value.ToString()));
             });
 
             // Register uppercase helper
-            templateEngine.RegisterHelper("uppercase", (context) => {
-                if (context == null) return string.Empty;
-                return context.ToString().ToUpperInvariant();
+            templateEngine.RegisterHelper("uppercase", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                var value = arguments.Length > 0 ? arguments[0] : null;
+                if (value == null) return;
+                writer.Write(ToUpperCase(value.ToString()));
             });
 
             // Register indent helper
-            templateEngine.RegisterHelper("indent", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterBlockHelper("indent", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                if (arguments.Length < 2)
+                {
+                    return;
+                }
                 
                 var text = arguments[0]?.ToString() ?? string.Empty;
                 if (!int.TryParse(arguments[1]?.ToString(), out var indentLevel))
@@ -67,12 +80,15 @@ namespace EzDbCodeGen.TemplateEngine
                 }
                 
                 var indentation = new string(' ', indentLevel * 4);
-                return Indent(text, indentation);
+                writer.Write(Indent(text, indentation));
             });
 
             // Register tab helper
-            templateEngine.RegisterHelper("tab", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterBlockHelper("tab", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                if (arguments.Length < 2)
+                {
+                    return;
+                }
                 
                 var text = arguments[0]?.ToString() ?? string.Empty;
                 if (!int.TryParse(arguments[1]?.ToString(), out var tabCount))
@@ -81,12 +97,15 @@ namespace EzDbCodeGen.TemplateEngine
                 }
                 
                 var indentation = new string('\t', tabCount);
-                return Indent(text, indentation);
+                writer.Write(Indent(text, indentation));
             });
 
             // Register string format helper
-            templateEngine.RegisterHelper("format", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterBlockHelper("format", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                if (arguments.Length < 2)
+                {
+                    return;
+                }
                 
                 var format = arguments[0]?.ToString() ?? string.Empty;
                 var args = new object[arguments.Length - 1];
@@ -98,87 +117,192 @@ namespace EzDbCodeGen.TemplateEngine
                 
                 try
                 {
-                    return string.Format(format, args);
+                    writer.Write(string.Format(format, args));
                 }
                 catch (Exception)
                 {
-                    return format;
+                    writer.Write(string.Empty);
                 }
             });
         }
 
-        private string ToCamelCase(string input)
+        public string ToCamelCase(string input)
         {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-            
-            // First convert to pascal case, then lowercase the first character
-            var pascalCase = ToPascalCase(input);
-            return char.ToLowerInvariant(pascalCase[0]) + pascalCase.Substring(1);
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var result = words[0].ToLower();
+
+            for (int i = 1; i < words.Length; i++)
+            {
+                result += char.ToUpper(words[i][0]) + words[i].Substring(1).ToLower();
+            }
+
+            return result;
         }
 
-        private string ToPascalCase(string input)
+        public string ToPascalCase(string input)
         {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-            
-            // Replace non-alphanumeric characters with spaces
-            var normalized = Regex.Replace(input, @"[^\w]", " ");
-            
-            // Split by spaces and uppercase the first character of each word
-            var words = normalized.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var sb = new StringBuilder();
-            
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var result = string.Empty;
+
             foreach (var word in words)
             {
-                if (word.Length > 0)
+                result += char.ToUpper(word[0]) + word.Substring(1).ToLower();
+            }
+
+            return result;
+        }
+
+        public string ToSnakeCase(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join("_", words.Select(w => w.ToLower()));
+        }
+
+        public string ToKebabCase(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join("-", words.Select(w => w.ToLower()));
+        }
+
+        public string ToConstantCase(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join("_", words.Select(w => w.ToUpper()));
+        }
+
+        public string Pluralize(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            // Simple pluralization rules
+            if (input.EndsWith("y", StringComparison.OrdinalIgnoreCase))
+            {
+                char secondToLast = input.Length > 1 ? input[input.Length - 2] : '\0';
+                if (!"aeiou".Contains(char.ToLowerInvariant(secondToLast)))
                 {
-                    sb.Append(char.ToUpperInvariant(word[0]));
-                    if (word.Length > 1)
-                    {
-                        sb.Append(word.Substring(1).ToLowerInvariant());
-                    }
+                    return input.Substring(0, input.Length - 1) + "ies";
                 }
             }
-            
-            return sb.ToString();
-        }
 
-        private string ToSnakeCase(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-            
-            // Insert underscore before capital letters and lowercase everything
-            var result = Regex.Replace(input, @"([a-z])([A-Z])", "$1_$2");
-            
-            // Replace non-alphanumeric characters with underscores
-            result = Regex.Replace(result, @"[^\w]", "_");
-            
-            // Remove consecutive underscores and lowercase everything
-            result = Regex.Replace(result, @"_{2,}", "_");
-            
-            return result.ToLowerInvariant();
-        }
-
-        private string ToKebabCase(string input)
-        {
-            if (string.IsNullOrEmpty(input)) return string.Empty;
-            
-            // Convert to snake case first, then replace underscores with hyphens
-            return ToSnakeCase(input).Replace('_', '-');
-        }
-
-        private string Indent(string text, string indentation)
-        {
-            if (string.IsNullOrEmpty(text)) return string.Empty;
-            
-            var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var sb = new StringBuilder();
-            
-            foreach (var line in lines)
+            if (input.EndsWith("s", StringComparison.OrdinalIgnoreCase) ||
+                input.EndsWith("x", StringComparison.OrdinalIgnoreCase) ||
+                input.EndsWith("z", StringComparison.OrdinalIgnoreCase) ||
+                input.EndsWith("ch", StringComparison.OrdinalIgnoreCase) ||
+                input.EndsWith("sh", StringComparison.OrdinalIgnoreCase))
             {
-                sb.AppendLine(indentation + line);
+                return input + "es";
             }
-            
-            return sb.ToString().TrimEnd();
+
+            return input + "s";
+        }
+
+        public string Singularize(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            if (input.EndsWith("ies", StringComparison.OrdinalIgnoreCase))
+            {
+                return input.Substring(0, input.Length - 3) + "y";
+            }
+
+            if (input.EndsWith("es", StringComparison.OrdinalIgnoreCase))
+            {
+                return input.Substring(0, input.Length - 2);
+            }
+
+            if (input.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            {
+                return input.Substring(0, input.Length - 1);
+            }
+
+            return input;
+        }
+
+        public string Humanize(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var words = input.Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            var result = string.Join(" ", words.Select(w => char.ToUpper(w[0]) + w.Substring(1).ToLower()));
+
+            return result;
+        }
+
+        public string Indent(string input, int spaces)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var indentation = new string(' ', spaces);
+            return string.Join("\n", input.Split('\n').Select(line => indentation + line));
+        }
+
+        public string IndentLines(string input, int spaces)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            var indentation = new string(' ', spaces);
+            return string.Join("\n", input.Split('\n').Select(line => indentation + line));
+        }
+
+        private static string ToUpperCase(string input)
+        {
+            return string.IsNullOrEmpty(input) ? string.Empty : input.ToUpper();
+        }
+
+        private static string ToLowerCase(string input)
+        {
+            return string.IsNullOrEmpty(input) ? string.Empty : input.ToLower();
+        }
+
+        private static string Indent(string text, string indentation)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var lines = text.Split('\n');
+            return string.Join("\n", lines.Select(line => indentation + line));
         }
     }
 }

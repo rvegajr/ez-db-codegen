@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EzDbCodeGen.EFCoreCompariso
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaProviderComparison", "SchemaProviderComparison\SchemaProviderComparison.csproj", "{B5DB7572-4E38-4C7E-A54E-C5776F36262B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EzDbCodeGen.Common.Interfaces", "src\EzDbCodeGen.Common.Interfaces\EzDbCodeGen.Common.Interfaces.csproj", "{946D199E-0C62-4253-A18C-1CB00036D3F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -213,6 +215,18 @@ Global
 		{B5DB7572-4E38-4C7E-A54E-C5776F36262B}.Release|x64.Build.0 = Release|Any CPU
 		{B5DB7572-4E38-4C7E-A54E-C5776F36262B}.Release|x86.ActiveCfg = Release|Any CPU
 		{B5DB7572-4E38-4C7E-A54E-C5776F36262B}.Release|x86.Build.0 = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|x64.Build.0 = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Debug|x86.Build.0 = Debug|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|x64.ActiveCfg = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|x64.Build.0 = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|x86.ActiveCfg = Release|Any CPU
+		{946D199E-0C62-4253-A18C-1CB00036D3F3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -231,5 +245,6 @@ Global
 		{2C799BAC-C332-4DAF-A21A-562E56857CBE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{1EF226E5-47FC-4DFC-82D0-BF13C295C718} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{EF6EE03B-07D6-48D0-A1BC-6809E425416A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{946D199E-0C62-4253-A18C-1CB00036D3F3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

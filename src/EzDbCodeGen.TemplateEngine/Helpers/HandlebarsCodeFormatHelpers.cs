@@ -1,10 +1,15 @@
 using System;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using EzDbCodeGen.Core.TemplateEngine.Helpers;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
 using HandlebarsDotNet;
+using HandlebarsDotNet.IO;
 
-namespace EzDbCodeGen.TemplateEngine
+#nullable enable
+
+namespace EzDbCodeGen.TemplateEngine.Helpers
 {
     /// <summary>
     /// Provides code formatting helpers for Handlebars templates.
@@ -15,15 +20,15 @@ namespace EzDbCodeGen.TemplateEngine
         public void RegisterHelpers(ITemplateEngine templateEngine)
         {
             // Register C# code format helpers
-            templateEngine.RegisterHelper("csharpFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatCSharpCode(code);
+            templateEngine.RegisterBlockHelper("csharpFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatCSharp(code));
             });
             
-            templateEngine.RegisterHelper("csharpProperty", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("csharpProperty", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var name = arguments[1]?.ToString() ?? string.Empty;
@@ -32,27 +37,27 @@ namespace EzDbCodeGen.TemplateEngine
                 var hasGetter = arguments.Length < 4 || Convert.ToBoolean(arguments[3] ?? true);
                 var hasSetter = arguments.Length < 5 || Convert.ToBoolean(arguments[4] ?? true);
                 
-                return GenerateCSharpProperty(type, name, accessModifier, hasGetter, hasSetter);
+                writer.WriteSafeString(GenerateCSharpProperty(type, name, accessModifier, hasGetter, hasSetter));
             });
             
             // Register SQL code format helpers
-            templateEngine.RegisterHelper("sqlFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatSqlCode(code);
+            templateEngine.RegisterBlockHelper("sqlFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatSql(code));
             });
             
             // Register TypeScript code format helpers
-            templateEngine.RegisterHelper("typescriptFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatTypeScriptCode(code);
+            templateEngine.RegisterBlockHelper("typescriptFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatTypeScript(code));
             });
             
-            templateEngine.RegisterHelper("typescriptProperty", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("typescriptProperty", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var name = arguments[1]?.ToString() ?? string.Empty;
@@ -61,78 +66,116 @@ namespace EzDbCodeGen.TemplateEngine
                 var isReadonly = arguments.Length >= 4 && Convert.ToBoolean(arguments[3] ?? false);
                 var isOptional = arguments.Length >= 5 && Convert.ToBoolean(arguments[4] ?? false);
                 
-                return GenerateTypeScriptProperty(type, name, accessModifier, isReadonly, isOptional);
+                writer.WriteSafeString(GenerateTypeScriptProperty(type, name, accessModifier, isReadonly, isOptional));
             });
             
             // Register JavaScript code format helpers
-            templateEngine.RegisterHelper("javascriptFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatJavaScriptCode(code);
+            templateEngine.RegisterBlockHelper("javascriptFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatJavaScript(code));
             });
             
             // Register HTML code format helpers
-            templateEngine.RegisterHelper("htmlFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatHtmlCode(code);
+            templateEngine.RegisterBlockHelper("htmlFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatHtml(code));
             });
             
             // Register CSS code format helpers
-            templateEngine.RegisterHelper("cssFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatCssCode(code);
+            templateEngine.RegisterBlockHelper("cssFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatCss(code));
             });
             
             // Register Java code format helpers
-            templateEngine.RegisterHelper("javaFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
-                
-                var code = options.Fn(context);
-                return FormatJavaCode(code);
+            templateEngine.RegisterBlockHelper("javaFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatJava(code));
             });
             
-            templateEngine.RegisterHelper("javaProperty", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("javaProperty", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var name = arguments[1]?.ToString() ?? string.Empty;
                 
-                var accessModifier = arguments.Length >= 3 ? (arguments[2]?.ToString() ?? "private") : "private";
-                var generateGetter = arguments.Length < 4 || Convert.ToBoolean(arguments[3] ?? true);
-                var generateSetter = arguments.Length < 5 || Convert.ToBoolean(arguments[4] ?? true);
+                var accessModifier = arguments.Length >= 3 ? (arguments[2]?.ToString() ?? "public") : "public";
+                var isFinal = arguments.Length >= 4 && Convert.ToBoolean(arguments[3] ?? false);
+                var isStatic = arguments.Length >= 5 && Convert.ToBoolean(arguments[4] ?? false);
                 
-                return GenerateJavaProperty(type, name, accessModifier, generateGetter, generateSetter);
+                writer.WriteSafeString(GenerateJavaProperty(type, name, accessModifier, isFinal, isStatic));
             });
             
             // Register Python code format helpers
-            templateEngine.RegisterHelper("pythonFormat", (context, options, arguments, blockParams) => {
-                if (options == null) return string.Empty;
+            templateEngine.RegisterBlockHelper("pythonFormat", (EncodedTextWriter writer, BlockHelperOptions options, Context context, Arguments arguments) => {
+                using var stringWriter = new EncodedTextWriter();
+                options.Template(stringWriter, context);
+                var code = stringWriter.ToString();
+                writer.WriteSafeString(FormatPython(code));
+            });
+            
+            // Register string escape helpers
+            templateEngine.RegisterHelper("escapeCSharp", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
                 
-                var code = options.Fn(context);
-                return FormatPythonCode(code);
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(EscapeCSharpString(value));
+            });
+            
+            templateEngine.RegisterHelper("escapeSql", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(EscapeSqlString(value));
+            });
+            
+            templateEngine.RegisterHelper("escapeJs", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(EscapeJsString(value));
+            });
+            
+            templateEngine.RegisterHelper("escapeHtml", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(EscapeHtmlString(value));
+            });
+            
+            // Register code format by language helper
+            templateEngine.RegisterHelper("formatCode", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
+                
+                var code = arguments[0]?.ToString() ?? string.Empty;
+                var language = arguments[1]?.ToString() ?? string.Empty;
+                
+                writer.WriteSafeString(FormatCodeByLanguage(code, language));
             });
         }
 
-        private string FormatCSharpCode(string code)
+        /// <inheritdoc/>
+        public string FormatCSharp(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
-            // Simple formatting rules for demonstration - in a real implementation,
-            // you'd want to use a proper code formatter like Roslyn
-            var sb = new StringBuilder();
             var lines = code.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            var sb = new StringBuilder();
             var indentLevel = 0;
             
             foreach (var line in lines)
             {
                 var trimmedLine = line.Trim();
                 
-                // Adjust indent level based on braces
+                // Adjust indent level based on closing braces at the start of the line
                 if (trimmedLine.StartsWith("}") || trimmedLine.StartsWith(")"))
                 {
                     indentLevel = Math.Max(0, indentLevel - 1);
@@ -148,7 +191,7 @@ namespace EzDbCodeGen.TemplateEngine
                     sb.AppendLine();
                 }
                 
-                // Increase indent level for next line if this one opens a block
+                // Adjust indent level based on opening braces at the end of the line
                 if (trimmedLine.EndsWith("{") || trimmedLine.EndsWith("("))
                 {
                     indentLevel++;
@@ -158,92 +201,120 @@ namespace EzDbCodeGen.TemplateEngine
             return sb.ToString().TrimEnd();
         }
 
-        private string GenerateCSharpProperty(string type, string name, string accessModifier, bool hasGetter, bool hasSetter)
+        /// <inheritdoc/>
+        public string GenerateCSharpProperty(string type, string name, string accessModifier = "public", bool hasGetter = true, bool hasSetter = true)
         {
             if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(name)) return string.Empty;
             
             var sb = new StringBuilder();
             
-            // Add the property declaration
-            if (hasGetter && hasSetter)
+            // Add XML documentation
+            sb.AppendLine("/// <summary>");
+            sb.AppendLine($"/// Gets or sets the {name}.");
+            sb.AppendLine("/// </summary>");
+            
+            // Build the property declaration
+            sb.Append($"{accessModifier} {type} {name} {{ ");
+            
+            if (hasGetter)
             {
-                sb.AppendLine($"{accessModifier} {type} {name} {{ get; set; }}");
-            }
-            else if (hasGetter)
-            {
-                sb.AppendLine($"{accessModifier} {type} {name} {{ get; }}");
-            }
-            else if (hasSetter)
-            {
-                sb.AppendLine($"{accessModifier} {type} {name} {{ set; }}");
-            }
-            else
-            {
-                sb.AppendLine($"{accessModifier} {type} {name};");
+                sb.Append("get; ");
             }
             
-            return sb.ToString().TrimEnd();
+            if (hasSetter)
+            {
+                sb.Append("set; ");
+            }
+            
+            sb.Append("}");
+            
+            return sb.ToString();
         }
 
-        private string FormatSqlCode(string code)
+        /// <inheritdoc/>
+        public string FormatSql(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
-            // Simple SQL formatting - just capitalize keywords
+            // Simple SQL formatting
+            var sb = new StringBuilder();
+            var lines = code.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            
+            // Keywords to uppercase
             var keywords = new[] { 
-                "SELECT", "FROM", "WHERE", "JOIN", "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", 
-                "ORDER BY", "GROUP BY", "HAVING", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", 
-                "ALTER", "TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "TRIGGER", "AS", 
-                "ON", "AND", "OR", "NOT", "IN", "BETWEEN", "LIKE", "IS NULL", "IS NOT NULL" 
+                "SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", 
+                "GROUP", "ORDER", "BY", "HAVING", "INSERT", "UPDATE", "DELETE", "CREATE", 
+                "ALTER", "DROP", "TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "TRIGGER" 
             };
             
-            var formattedCode = code;
-            
-            foreach (var keyword in keywords)
+            foreach (var line in lines)
             {
-                var pattern = $@"\b{keyword}\b";
-                formattedCode = Regex.Replace(
-                    formattedCode, 
-                    pattern, 
-                    keyword.ToUpperInvariant(), 
-                    RegexOptions.IgnoreCase);
+                var formattedLine = line;
+                
+                // Uppercase SQL keywords
+                foreach (var keyword in keywords)
+                {
+                    formattedLine = Regex.Replace(
+                        formattedLine, 
+                        $@"\b{keyword}\b", 
+                        keyword, 
+                        RegexOptions.IgnoreCase
+                    );
+                }
+                
+                sb.AppendLine(formattedLine);
             }
             
-            return formattedCode;
+            return sb.ToString().TrimEnd();
         }
 
-        private string FormatTypeScriptCode(string code)
+        /// <inheritdoc/>
+        public string FormatTypeScript(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
             // For this demo, we'll just apply basic indentation
-            return FormatCSharpCode(code); // Reuse the basic formatting logic
+            return FormatCSharp(code); // Reuse the basic formatting logic
         }
 
-        private string GenerateTypeScriptProperty(string type, string name, string accessModifier, bool isReadonly, bool isOptional)
+        /// <inheritdoc/>
+        public string GenerateTypeScriptProperty(string type, string name, string accessModifier = "public", bool isReadonly = false, bool isOptional = false)
         {
             if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(name)) return string.Empty;
             
             var sb = new StringBuilder();
             
-            // Add the property declaration
-            var readonlyPrefix = isReadonly ? "readonly " : "";
-            var optionalSuffix = isOptional ? "?" : "";
+            // Add property declaration
+            sb.Append($"{accessModifier} ");
             
-            sb.AppendLine($"{accessModifier} {readonlyPrefix}{name}{optionalSuffix}: {type};");
+            if (isReadonly)
+            {
+                sb.Append("readonly ");
+            }
             
-            return sb.ToString().TrimEnd();
+            sb.Append(name);
+            
+            if (isOptional)
+            {
+                sb.Append("?");
+            }
+            
+            sb.Append($": {type};");
+            
+            return sb.ToString();
         }
 
-        private string FormatJavaScriptCode(string code)
+        /// <inheritdoc/>
+        public string FormatJavaScript(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
             // For this demo, we'll just apply basic indentation
-            return FormatCSharpCode(code); // Reuse the basic formatting logic
+            return FormatCSharp(code); // Reuse the basic formatting logic
         }
 
-        private string FormatHtmlCode(string code)
+        /// <inheritdoc/>
+        public string FormatHtml(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
@@ -256,8 +327,8 @@ namespace EzDbCodeGen.TemplateEngine
             {
                 var trimmedLine = line.Trim();
                 
-                // Decrease indent for closing tags
-                if (trimmedLine.StartsWith("</"))
+                // Check for closing tags that decrease indentation
+                if (Regex.IsMatch(trimmedLine, @"^</[^>]+>"))
                 {
                     indentLevel = Math.Max(0, indentLevel - 1);
                 }
@@ -272,8 +343,10 @@ namespace EzDbCodeGen.TemplateEngine
                     sb.AppendLine();
                 }
                 
-                // Increase indent for opening tags that aren't self-closing
-                if (trimmedLine.StartsWith("<") && !trimmedLine.StartsWith("</") && !trimmedLine.EndsWith("/>") && !trimmedLine.EndsWith("</"))
+                // Increase indent level for next line if this one contains an opening tag without a closing tag
+                if (Regex.IsMatch(trimmedLine, @"<[^/][^>]*>") && 
+                    !Regex.IsMatch(trimmedLine, @"<[^/][^>]*/>") && 
+                    !Regex.IsMatch(trimmedLine, @"<[^/][^>]*>[^<]*</[^>]+>"))
                 {
                     indentLevel++;
                 }
@@ -282,7 +355,8 @@ namespace EzDbCodeGen.TemplateEngine
             return sb.ToString().TrimEnd();
         }
 
-        private string FormatCssCode(string code)
+        /// <inheritdoc/>
+        public string FormatCss(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
@@ -295,7 +369,7 @@ namespace EzDbCodeGen.TemplateEngine
             {
                 var trimmedLine = line.Trim();
                 
-                // Adjust indent level based on braces
+                // Check for closing braces that decrease indentation
                 if (trimmedLine.StartsWith("}"))
                 {
                     indentLevel = Math.Max(0, indentLevel - 1);
@@ -321,47 +395,30 @@ namespace EzDbCodeGen.TemplateEngine
             return sb.ToString().TrimEnd();
         }
 
-        private string FormatJavaCode(string code)
+        /// <inheritdoc/>
+        public string FormatJava(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
             // For this demo, we'll just apply basic indentation
-            return FormatCSharpCode(code); // Reuse the basic formatting logic
+            return FormatCSharp(code); // Reuse the basic formatting logic
         }
 
-        private string GenerateJavaProperty(string type, string name, string accessModifier, bool generateGetter, bool generateSetter)
+        /// <inheritdoc/>
+        public string GenerateJavaProperty(string type, string name, string accessModifier = "private", bool isFinal = false, bool isStatic = false)
         {
             if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(name)) return string.Empty;
             
             var sb = new StringBuilder();
             
             // Add the field declaration
-            sb.AppendLine($"{accessModifier} {type} {name};");
-            
-            // Add getter if requested
-            if (generateGetter)
-            {
-                var getterName = $"get{char.ToUpperInvariant(name[0])}{name.Substring(1)}";
-                sb.AppendLine();
-                sb.AppendLine($"public {type} {getterName}() {{");
-                sb.AppendLine($"    return {name};");
-                sb.AppendLine("}");
-            }
-            
-            // Add setter if requested
-            if (generateSetter)
-            {
-                var setterName = $"set{char.ToUpperInvariant(name[0])}{name.Substring(1)}";
-                sb.AppendLine();
-                sb.AppendLine($"public void {setterName}({type} {name}) {{");
-                sb.AppendLine($"    this.{name} = {name};");
-                sb.AppendLine("}");
-            }
+            sb.AppendLine($"{accessModifier} {(isFinal ? "final " : "")}{(isStatic ? "static " : "")}{type} {name};");
             
             return sb.ToString().TrimEnd();
         }
 
-        private string FormatPythonCode(string code)
+        /// <inheritdoc/>
+        public string FormatPython(string code)
         {
             if (string.IsNullOrEmpty(code)) return string.Empty;
             
@@ -405,5 +462,96 @@ namespace EzDbCodeGen.TemplateEngine
             
             return sb.ToString().TrimEnd();
         }
+        
+        /// <inheritdoc/>
+        public string EscapeCSharpString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+        }
+        
+        /// <inheritdoc/>
+        public string EscapeSqlString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            
+            // In SQL, single quotes are escaped by doubling them
+            return value.Replace("'", "''");
+        }
+        
+        /// <inheritdoc/>
+        public string EscapeJsString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("'", "\\'")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+        }
+        
+        /// <inheritdoc/>
+        public string EscapeHtmlString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            
+            return value
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\"", "&quot;")
+                .Replace("'", "&#39;");
+        }
+        
+        /// <inheritdoc/>
+        public string FormatCodeByLanguage(string code, string language)
+        {
+            if (string.IsNullOrEmpty(code)) return string.Empty;
+            
+            switch (language.ToLowerInvariant())
+            {
+                case "csharp":
+                case "c#":
+                    return FormatCSharp(code);
+                case "sql":
+                    return FormatSql(code);
+                case "typescript":
+                case "ts":
+                    return FormatTypeScript(code);
+                case "javascript":
+                case "js":
+                    return FormatJavaScript(code);
+                case "html":
+                    return FormatHtml(code);
+                case "css":
+                    return FormatCss(code);
+                case "java":
+                    return FormatJava(code);
+                case "python":
+                case "py":
+                    return FormatPython(code);
+                default:
+                    return code; // Return as-is if language not supported
+            }
+        }
+        
+        // Keep the old method names for backward compatibility with existing code
+        public string FormatCSharpCode(string code) => FormatCSharp(code);
+        public string FormatSqlCode(string code) => FormatSql(code);
+        public string FormatTypeScriptCode(string code) => FormatTypeScript(code);
+        public string FormatJavaScriptCode(string code) => FormatJavaScript(code);
+        public string FormatHtmlCode(string code) => FormatHtml(code);
+        public string FormatCssCode(string code) => FormatCss(code);
+        public string FormatJavaCode(string code) => FormatJava(code);
+        public string FormatPythonCode(string code) => FormatPython(code);
     }
 }

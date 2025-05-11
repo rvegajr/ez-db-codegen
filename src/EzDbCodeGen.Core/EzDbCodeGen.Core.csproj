@@ -22,6 +22,7 @@
     <ProjectReference Include="..\EzDbCodeGen.TypeMapping.Interfaces\EzDbCodeGen.TypeMapping.Interfaces.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.TypeMapping\EzDbCodeGen.TypeMapping.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.CodeGen.Interfaces\EzDbCodeGen.CodeGen.Interfaces.csproj" />
+    <ProjectReference Include="..\EzDbCodeGen.Common.Interfaces\EzDbCodeGen.Common.Interfaces.csproj" />
   </ItemGroup>
 
 </Project>

@@ -341,7 +341,7 @@ public class SqlServerSchemaProvider : DatabaseSchemaProvider
                         continue;
                     }
 
-                    var column = table.GetColumn(columnName);
+                    var column = EzDbCodeGen.Schema.Extensions.TableExtensions.GetColumn(table, columnName);
                     if (column != null)
                     {
                         keyColumns.Add(column);
@@ -414,7 +414,7 @@ public class SqlServerSchemaProvider : DatabaseSchemaProvider
                         continue;
                     }
 
-                    var column = table.GetColumn(columnName);
+                    var column = EzDbCodeGen.Schema.Extensions.TableExtensions.GetColumn(table, columnName);
                     if (column == null)
                     {
                         continue;
@@ -479,7 +479,7 @@ public class SqlServerSchemaProvider : DatabaseSchemaProvider
                         continue;
                     }
 
-                    var column = table.GetColumn(columnName);
+                    var column = EzDbCodeGen.Schema.Extensions.TableExtensions.GetColumn(table, columnName);
                     if (column == null)
                     {
                         continue;
@@ -1053,8 +1053,8 @@ public class SqlServerSchemaProvider : DatabaseSchemaProvider
                     continue;
                 }
                 
-                var pkColumn = pkTable.GetColumn(primaryColumn);
-                var fkColumn = fkTable.GetColumn(foreignColumn);
+                var pkColumn = EzDbCodeGen.Schema.Extensions.TableExtensions.GetColumn(pkTable, primaryColumn);
+                var fkColumn = EzDbCodeGen.Schema.Extensions.TableExtensions.GetColumn(fkTable, foreignColumn);
                 
                 if (pkColumn == null || fkColumn == null)
                 {

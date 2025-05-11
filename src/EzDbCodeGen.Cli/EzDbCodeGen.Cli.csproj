@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\EzDbCodeGen.Core\EzDbCodeGen.Core.csproj" />
@@ -6,6 +6,17 @@
     <ProjectReference Include="..\EzDbCodeGen.TypeMapping\EzDbCodeGen.TypeMapping.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.TemplateEngine\EzDbCodeGen.TemplateEngine.csproj" />
     <ProjectReference Include="..\EzDbCodeGen.CodeGeneration\EzDbCodeGen.CodeGeneration.csproj" />
+    <ProjectReference Include="..\EzDbCodeGen.Common.Interfaces\EzDbCodeGen.Common.Interfaces.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <!-- We don't need to explicitly reference Microsoft.Data.SqlClient as it's already included via EzDbCodeGen.Schema -->
   </ItemGroup>
 
   <PropertyGroup>

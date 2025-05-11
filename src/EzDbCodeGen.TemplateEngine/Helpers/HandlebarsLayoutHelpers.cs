@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using EzDbCodeGen.Core.TemplateEngine.Helpers;
 using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
 using HandlebarsDotNet;
+
+#nullable enable
 
 namespace EzDbCodeGen.TemplateEngine
 {
@@ -19,14 +21,19 @@ namespace EzDbCodeGen.TemplateEngine
         public void RegisterHelpers(ITemplateEngine templateEngine)
         {
             // Register section helper
-            templateEngine.RegisterHelper("section", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 1 || options == null) return string.Empty;
+            templateEngine.RegisterHelper("section", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2)
+                {
+                    return;
+                }
                 
                 var sectionName = arguments[0]?.ToString() ?? string.Empty;
-                if (string.IsNullOrEmpty(sectionName)) return string.Empty;
+                var content = arguments[1]?.ToString() ?? string.Empty;
                 
-                // Get the content of the section
-                var content = options.Fn(context);
+                if (string.IsNullOrEmpty(sectionName))
+                {
+                    return;
+                }
                 
                 // Store the section content
                 _sections[sectionName] = content;
@@ -36,170 +43,153 @@ namespace EzDbCodeGen.TemplateEngine
                 {
                     _sectionOrder.Add(sectionName);
                 }
-                
-                return string.Empty; // Sections don't output anything where they're defined
             });
 
             // Register render section helper
-            templateEngine.RegisterHelper("renderSection", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 1) return string.Empty;
+            templateEngine.RegisterHelper("renderSection", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1)
+                {
+                    return;
+                }
                 
                 var sectionName = arguments[0]?.ToString() ?? string.Empty;
-                if (string.IsNullOrEmpty(sectionName)) return string.Empty;
+                
+                if (string.IsNullOrEmpty(sectionName))
+                {
+                    return;
+                }
                 
                 // Check if the section exists
                 if (!_sections.TryGetValue(sectionName, out var content))
                 {
-                    // Return default content if provided
-                    return options?.Fn(context) ?? string.Empty;
+                    return;
                 }
                 
-                return content;
+                writer.Write(content);
             });
 
             // Register layout helper
-            templateEngine.RegisterHelper("layout", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 1) return string.Empty;
+            templateEngine.RegisterHelper("layout", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2)
+                {
+                    return;
+                }
                 
                 var layoutName = arguments[0]?.ToString() ?? string.Empty;
-                if (string.IsNullOrEmpty(layoutName)) return string.Empty;
+                var bodyContent = arguments[1]?.ToString() ?? string.Empty;
+                
+                if (string.IsNullOrEmpty(layoutName))
+                {
+                    return;
+                }
                 
                 // Store the body content
-                if (options != null)
+                _sections["body"] = bodyContent;
+                
+                // Add body to the section order if it's not already there
+                if (!_sectionOrder.Contains("body"))
                 {
-                    _sections["body"] = options.Fn(context);
-                    
-                    // Add body to the section order if it's not already there
-                    if (!_sectionOrder.Contains("body"))
-                    {
-                        _sectionOrder.Add("body");
-                    }
+                    _sectionOrder.Add("body");
                 }
                 
                 // The layout will be processed later, when the full template is processed
-                return $"LAYOUT:{layoutName}";
+                writer.Write($"LAYOUT:{layoutName}");
             });
 
             // Register render body helper
-            templateEngine.RegisterHelper("renderBody", (context) => {
+            templateEngine.RegisterHelper("renderBody", (EncodedTextWriter writer, Context context, Arguments arguments) => {
                 // Check if the body section exists
                 if (_sections.TryGetValue("body", out var content))
                 {
-                    return content;
+                    writer.Write(content);
                 }
-                
-                return string.Empty;
             });
 
             // Register clear sections helper
-            templateEngine.RegisterHelper("clearSections", (context) => {
+            templateEngine.RegisterHelper("clearSections", (EncodedTextWriter writer, Context context, Arguments arguments) => {
                 _sections.Clear();
                 _sectionOrder.Clear();
-                return string.Empty;
             });
 
             // Register render all sections helper
-            templateEngine.RegisterHelper("renderAllSections", (context) => {
-                var sb = new StringBuilder();
-                
+            templateEngine.RegisterHelper("renderAllSections", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                // Render sections in the order they were defined
                 foreach (var sectionName in _sectionOrder)
                 {
                     if (_sections.TryGetValue(sectionName, out var content))
                     {
-                        sb.Append(content);
+                        writer.Write(content);
                     }
                 }
-                
-                return sb.ToString();
             });
 
-            // Register move section helper
-            templateEngine.RegisterHelper("moveSection", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
-                
-                var sectionName = arguments[0]?.ToString() ?? string.Empty;
-                var position = arguments[1]?.ToString() ?? string.Empty;
-                
-                if (string.IsNullOrEmpty(sectionName) || !_sectionOrder.Contains(sectionName)) return string.Empty;
-                
-                // Remove the section from its current position
-                _sectionOrder.Remove(sectionName);
-                
-                // Place it at the requested position
-                switch (position.ToLowerInvariant())
+            // Register has section helper
+            templateEngine.RegisterHelper("hasSection", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1)
                 {
-                    case "first":
-                        _sectionOrder.Insert(0, sectionName);
-                        break;
-                    
-                    case "last":
-                        _sectionOrder.Add(sectionName);
-                        break;
-                    
-                    default:
-                        // Try to parse as a numeric position
-                        if (int.TryParse(position, out var pos))
-                        {
-                            // Clamp the position to a valid range
-                            pos = Math.Max(0, Math.Min(pos, _sectionOrder.Count));
-                            _sectionOrder.Insert(pos, sectionName);
-                        }
-                        else
-                        {
-                            // Default to adding at the end
-                            _sectionOrder.Add(sectionName);
-                        }
-                        break;
+                    writer.Write("false");
+                    return;
                 }
                 
-                return string.Empty;
-            });
-
-            // Register move section after helper
-            templateEngine.RegisterHelper("moveSectionAfter", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
-                
                 var sectionName = arguments[0]?.ToString() ?? string.Empty;
-                var targetSectionName = arguments[1]?.ToString() ?? string.Empty;
                 
-                if (string.IsNullOrEmpty(sectionName) || string.IsNullOrEmpty(targetSectionName) ||
-                    !_sectionOrder.Contains(sectionName) || !_sectionOrder.Contains(targetSectionName)) 
-                    return string.Empty;
+                if (string.IsNullOrEmpty(sectionName))
+                {
+                    writer.Write("false");
+                    return;
+                }
                 
-                // Remove the section from its current position
-                _sectionOrder.Remove(sectionName);
-                
-                // Find the target section position
-                var targetPos = _sectionOrder.IndexOf(targetSectionName);
-                
-                // Insert after the target
-                _sectionOrder.Insert(targetPos + 1, sectionName);
-                
-                return string.Empty;
+                writer.Write(_sections.ContainsKey(sectionName) ? "true" : "false");
             });
-
-            // Register move section before helper
-            templateEngine.RegisterHelper("moveSectionBefore", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
-                
-                var sectionName = arguments[0]?.ToString() ?? string.Empty;
-                var targetSectionName = arguments[1]?.ToString() ?? string.Empty;
-                
-                if (string.IsNullOrEmpty(sectionName) || string.IsNullOrEmpty(targetSectionName) ||
-                    !_sectionOrder.Contains(sectionName) || !_sectionOrder.Contains(targetSectionName)) 
-                    return string.Empty;
-                
-                // Remove the section from its current position
-                _sectionOrder.Remove(sectionName);
-                
-                // Find the target section position
-                var targetPos = _sectionOrder.IndexOf(targetSectionName);
-                
-                // Insert before the target
-                _sectionOrder.Insert(targetPos, sectionName);
-                
+        }
+        
+        /// <inheritdoc/>
+        public string DefineSection(string name, string content)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
                 return string.Empty;
-            });
+            }
+            
+            // Store the section content
+            _sections[name] = content;
+            
+            // If this is a new section, add it to the order list
+            if (!_sectionOrder.Contains(name))
+            {
+                _sectionOrder.Add(name);
+            }
+            
+            return content;
+        }
+        
+        /// <inheritdoc/>
+        public string RenderSection(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return string.Empty;
+            }
+            
+            // Check if the section exists
+            if (!_sections.TryGetValue(name, out var content))
+            {
+                return string.Empty;
+            }
+            
+            return content;
+        }
+        
+        /// <inheritdoc/>
+        public string RenderBody()
+        {
+            // Check if the body section exists
+            if (_sections.TryGetValue("body", out var content))
+            {
+                return content;
+            }
+            
+            return string.Empty;
         }
     }
 }

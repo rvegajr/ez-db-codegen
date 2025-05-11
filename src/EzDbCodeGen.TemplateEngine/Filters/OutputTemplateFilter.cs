@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using EzDbCodeGen.CodeGen.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
 
 namespace EzDbCodeGen.TemplateEngine.Filters;
 
 /// <summary>
 /// A template filter that applies transformations to the generated output.
 /// </summary>
-public class OutputTemplateFilter : ITemplateFilter
+public class OutputTemplateFilter : ITemplateProcessingFilter
 {
     private readonly Func<string, string> _transformFunc;
     private readonly Predicate<string> _templateMatcher;
@@ -78,6 +78,12 @@ public class OutputTemplateFilter : ITemplateFilter
         }
         
         return _templateMatcher(templateName);
+    }
+
+    /// <inheritdoc/>
+    public string Filter(string input)
+    {
+        return ApplyTransform(input);
     }
 
     /// <inheritdoc/>

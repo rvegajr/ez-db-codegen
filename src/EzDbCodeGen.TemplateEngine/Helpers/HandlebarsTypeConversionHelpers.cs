@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
-using EzDbCodeGen.Core.TemplateEngine.Helpers;
 using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
 using HandlebarsDotNet;
+
+#nullable enable
 
 namespace EzDbCodeGen.TemplateEngine
 {
@@ -167,42 +169,50 @@ namespace EzDbCodeGen.TemplateEngine
         public void RegisterHelpers(ITemplateEngine templateEngine)
         {
             // Register ToCSharpType helper
-            templateEngine.RegisterHelper("toCSharpType", (context) => {
-                if (context == null) return string.Empty;
-                return ConvertType(context.ToString(), "csharp");
+            templateEngine.RegisterHelper("toCSharpType", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(ConvertType(value, "csharp"));
             });
 
             // Register ToTypescriptType helper
-            templateEngine.RegisterHelper("toTypeScriptType", (context) => {
-                if (context == null) return string.Empty;
-                return ConvertType(context.ToString(), "typescript");
+            templateEngine.RegisterHelper("toTypeScriptType", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(ConvertType(value, "typescript"));
             });
 
             // Register ToJavaType helper
-            templateEngine.RegisterHelper("toJavaType", (context) => {
-                if (context == null) return string.Empty;
-                return ConvertType(context.ToString(), "java");
+            templateEngine.RegisterHelper("toJavaType", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(ConvertType(value, "java"));
             });
 
             // Register ToPythonType helper
-            templateEngine.RegisterHelper("toPythonType", (context) => {
-                if (context == null) return string.Empty;
-                return ConvertType(context.ToString(), "python");
+            templateEngine.RegisterHelper("toPythonType", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 1) return;
+                
+                var value = arguments[0]?.ToString() ?? string.Empty;
+                writer.WriteSafeString(ConvertType(value, "python"));
             });
 
             // Register ConvertType helper
-            templateEngine.RegisterHelper("convertType", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("convertType", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var dbType = arguments[0]?.ToString() ?? string.Empty;
                 var targetLanguage = arguments[1]?.ToString() ?? "csharp";
                 
-                return ConvertType(dbType, targetLanguage);
+                writer.WriteSafeString(ConvertType(dbType, targetLanguage));
             });
 
             // Register Nullable helper
-            templateEngine.RegisterHelper("nullable", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("nullable", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var isNullable = false;
@@ -222,7 +232,7 @@ namespace EzDbCodeGen.TemplateEngine
                     targetLanguage = arguments[2]?.ToString() ?? "csharp";
                 }
                 
-                return MakeNullable(type, isNullable, targetLanguage);
+                writer.WriteSafeString(MakeNullable(type, isNullable, targetLanguage));
             });
             
             // Register ShortNullable helper aliases
@@ -232,8 +242,8 @@ namespace EzDbCodeGen.TemplateEngine
         private void RegisterNullableHelpers(ITemplateEngine templateEngine)
         {
             // C# nullable helper
-            templateEngine.RegisterHelper("nullableCSharp", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("nullableCSharp", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var isNullable = false;
@@ -247,12 +257,12 @@ namespace EzDbCodeGen.TemplateEngine
                     isNullable = parsedBool;
                 }
                 
-                return MakeNullable(type, isNullable, "csharp");
+                writer.WriteSafeString(MakeNullable(type, isNullable, "csharp"));
             });
             
             // TypeScript nullable helper
-            templateEngine.RegisterHelper("nullableTypeScript", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("nullableTypeScript", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var isNullable = false;
@@ -266,12 +276,12 @@ namespace EzDbCodeGen.TemplateEngine
                     isNullable = parsedBool;
                 }
                 
-                return MakeNullable(type, isNullable, "typescript");
+                writer.WriteSafeString(MakeNullable(type, isNullable, "typescript"));
             });
             
             // Java nullable helper
-            templateEngine.RegisterHelper("nullableJava", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("nullableJava", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var isNullable = false;
@@ -285,12 +295,12 @@ namespace EzDbCodeGen.TemplateEngine
                     isNullable = parsedBool;
                 }
                 
-                return MakeNullable(type, isNullable, "java");
+                writer.WriteSafeString(MakeNullable(type, isNullable, "java"));
             });
             
             // Python nullable helper (optional typing)
-            templateEngine.RegisterHelper("nullablePython", (context, options, arguments, blockParams) => {
-                if (arguments.Length < 2) return string.Empty;
+            templateEngine.RegisterHelper("nullablePython", (EncodedTextWriter writer, Context context, Arguments arguments) => {
+                if (arguments.Length < 2) return;
                 
                 var type = arguments[0]?.ToString() ?? string.Empty;
                 var isNullable = false;
@@ -304,11 +314,18 @@ namespace EzDbCodeGen.TemplateEngine
                     isNullable = parsedBool;
                 }
                 
-                return MakeNullable(type, isNullable, "python");
+                writer.WriteSafeString(MakeNullable(type, isNullable, "python"));
             });
         }
 
-        private string ConvertType(string dbType, string targetLanguage)
+        /// <inheritdoc/>
+        /// <summary>
+        /// Converts a SQL Server type to a type in the target language.
+        /// </summary>
+        /// <param name="dbType">The SQL Server type to convert.</param>
+        /// <param name="targetLanguage">The target language to convert to.</param>
+        /// <returns>The converted type in the target language.</returns>
+        public string ConvertType(string dbType, string targetLanguage)
         {
             if (string.IsNullOrEmpty(dbType)) return string.Empty;
             
@@ -333,7 +350,15 @@ namespace EzDbCodeGen.TemplateEngine
             };
         }
 
-        private string MakeNullable(string type, bool isNullable, string targetLanguage)
+        /// <inheritdoc/>
+        /// <summary>
+        /// Makes a type nullable in the target language.
+        /// </summary>
+        /// <param name="type">The type to make nullable.</param>
+        /// <param name="isNullable">Whether the type should be nullable.</param>
+        /// <param name="targetLanguage">The target language to make the type nullable in.</param>
+        /// <returns>The nullable type in the target language.</returns>
+        public string MakeNullable(string type, bool isNullable, string targetLanguage)
         {
             if (string.IsNullOrEmpty(type)) return string.Empty;
             

@@ -102,6 +102,12 @@ namespace EzDbCodeGen.Cli.Commands
                 _schemaProviderFactory,
                 _relationshipDetectorFactory,
                 _logger));
+                
+            // Register schema-compare command
+            RegisterCommand(new SchemaCompareCommand(
+                _schemaProviderFactory,
+                _relationshipDetectorFactory,
+                _logger));
 
             // Register help command
             RegisterCommand(new HelpCommand(_logger));

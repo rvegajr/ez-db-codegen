@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using EzDbCodeGen.CodeGen.Interfaces;
-using EzDbCodeGen.Core.Logging;
-using EzDbCodeGen.Core.TemplateEngine;
-using EzDbCodeGen.Core.TemplateEngine.Helpers;
+using EzDbCodeGen.Core.Interfaces.Logging;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.CoreHelpers;
+using EzDbCodeGen.TemplateEngine.Helpers;
 using HandlebarsDotNet;
 
 namespace EzDbCodeGen.TemplateEngine
@@ -13,12 +13,12 @@ namespace EzDbCodeGen.TemplateEngine
     /// <summary>
     /// Implements a template engine using Handlebars.Net.
     /// </summary>
-    public class HandlebarsTemplateEngine : ITemplateEngine
+    public class HandlebarsTemplateEngine : EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine
     {
         private readonly ICodeGenerationLogger _logger;
         private readonly TemplateEngineOptions _options;
         private readonly IHandlebars _handlebars;
-        private readonly Dictionary<string, ICompiledTemplate> _compiledTemplates = new();
+        private readonly Dictionary<string, EzDbCodeGen.TemplateEngine.Interfaces.ICompiledTemplate> _compiledTemplates = new();
         private readonly List<object> _registeredHelpers = new();
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace EzDbCodeGen.TemplateEngine
         }
 
         /// <inheritdoc/>
-        public ICompiledTemplate Compile(string templateContent)
+        public EzDbCodeGen.TemplateEngine.Interfaces.ICompiledTemplate Compile(string templateContent)
         {
             if (string.IsNullOrEmpty(templateContent))
             {
@@ -65,7 +65,7 @@ namespace EzDbCodeGen.TemplateEngine
         }
 
         /// <inheritdoc/>
-        public string Execute(ICompiledTemplate template, object dataModel)
+        public string Execute(EzDbCodeGen.TemplateEngine.Interfaces.ICompiledTemplate template, object dataModel)
         {
             if (template == null)
             {
@@ -98,7 +98,7 @@ namespace EzDbCodeGen.TemplateEngine
         }
 
         /// <inheritdoc/>
-        public void RegisterHelper(string name, Delegate helper)
+        public void RegisterHelper(string name, Action<EncodedTextWriter, Context, Arguments> helper)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -112,19 +112,19 @@ namespace EzDbCodeGen.TemplateEngine
 
             try
             {
-                _logger.LogDebug($"Registering helper: {name}");
-                _handlebars.RegisterHelper(name, helper);
+                _logger.LogDebug($"Registering helper '{name}'");
+                _handlebars.RegisterHelper(name, (writer, context, arguments) => helper(writer, context, arguments));
                 _registeredHelpers.Add(helper);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error registering helper {name}: {ex.Message}");
-                throw new HelperRegistrationException($"Error registering helper {name}", ex);
+                _logger.LogError($"Error registering helper '{name}': {ex.Message}");
+                throw new HelperRegistrationException($"Error registering helper '{name}'", ex);
             }
         }
 
         /// <inheritdoc/>
-        public void RegisterBlockHelper(string name, Delegate helper)
+        public void RegisterBlockHelper(string name, Action<EncodedTextWriter, BlockHelperOptions, Context, Arguments> helper)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -138,86 +138,81 @@ namespace EzDbCodeGen.TemplateEngine
 
             try
             {
-                _logger.LogDebug($"Registering block helper: {name}");
-                _handlebars.RegisterHelper(name, helper);
+                _logger.LogDebug($"Registering block helper '{name}'");
+                _handlebars.RegisterHelper(name, (writer, options, context, arguments) => helper(writer, options, context, arguments));
                 _registeredHelpers.Add(helper);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error registering block helper {name}: {ex.Message}");
-                throw new HelperRegistrationException($"Error registering block helper {name}", ex);
+                _logger.LogError($"Error registering block helper '{name}': {ex.Message}");
+                throw new HelperRegistrationException($"Error registering block helper '{name}'", ex);
             }
         }
 
         /// <inheritdoc/>
-        public void RegisterPartial(string name, string template)
+        public void RegisterPartial(string name, string partialContent)
         {
             if (string.IsNullOrEmpty(name))
             {
                 throw new ArgumentNullException(nameof(name));
             }
 
-            if (template == null)
+            if (partialContent == null)
             {
-                throw new ArgumentNullException(nameof(template));
+                throw new ArgumentNullException(nameof(partialContent));
             }
 
             try
             {
                 _logger.LogDebug($"Registering partial: {name}");
-                _handlebars.RegisterTemplate(name, template);
+                _handlebars.RegisterTemplate(name, partialContent);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error registering partial {name}: {ex.Message}");
-                throw new PartialRegistrationException($"Error registering partial {name}", ex);
+                _logger.LogError($"Error registering partial '{name}': {ex.Message}");
+                throw new PartialRegistrationException($"Error registering partial '{name}'", ex);
             }
         }
 
         private HandlebarsConfiguration ConfigureHandlebars()
         {
-            var config = new HandlebarsConfiguration
+            return new HandlebarsConfiguration
             {
-                ThrowOnUnresolvedBindingExpression = _options.ThrowOnUnresolvedBindings,
-                NoEscape = _options.DisableEncoding
+                ThrowOnUnresolvedBindingExpression = true,
+                NoEscape = false
             };
-
-            return config;
         }
 
         private void RegisterStandardHelpers()
         {
-            // Register standard helpers for string operations, comparison, etc.
-            _logger.LogDebug("Registering standard helpers");
+            // Register standard helpers here
+            // TODO: Fix helper registrations
+            /*
+            var stringFormatHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsStringFormatHelpers();
+            stringFormatHelpers.RegisterHelpers(this);
             
-            // String helpers
-            RegisterHelper("toLowerCase", (string value) => value?.ToLowerInvariant());
-            RegisterHelper("toUpperCase", (string value) => value?.ToUpperInvariant());
-            RegisterHelper("capitalize", (string value) => 
-                string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value.Substring(1));
+            var codeFormatHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsCodeFormatHelpers();
+            codeFormatHelpers.RegisterHelpers(this);
             
-            // Comparison helpers
-            RegisterHelper("equals", (object left, object right) => Equals(left, right));
-            RegisterHelper("notEquals", (object left, object right) => !Equals(left, right));
-            RegisterHelper("gt", (double left, double right) => left > right);
-            RegisterHelper("gte", (double left, double right) => left >= right);
-            RegisterHelper("lt", (double left, double right) => left < right);
-            RegisterHelper("lte", (double left, double right) => left <= right);
+            var documentationHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsDocumentationHelpers();
+            documentationHelpers.RegisterHelpers(this);
             
-            // Conditional helpers
-            RegisterHelper("if", (bool condition, string trueValue, string falseValue) => condition ? trueValue : falseValue);
+            var layoutHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsLayoutHelpers();
+            layoutHelpers.RegisterHelpers(this);
             
-            // Collection helpers
-            RegisterHelper("count", (IEnumerable<object> collection) => collection?.Count() ?? 0);
-            RegisterHelper("join", (IEnumerable<object> collection, string separator) => 
-                collection == null ? string.Empty : string.Join(separator ?? ",", collection));
+            var typeConversionHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsTypeConversionHelpers();
+            typeConversionHelpers.RegisterHelpers(this);
+            
+            var testHelpers = new EzDbCodeGen.TemplateEngine.Helpers.HandlebarsTestHelpers();
+            testHelpers.RegisterHelpers(this);
+            */
         }
     }
 
     /// <summary>
     /// Implementation of ICompiledTemplate for Handlebars.Net.
     /// </summary>
-    public class CompiledTemplate : ICompiledTemplate
+    internal class CompiledTemplate : EzDbCodeGen.TemplateEngine.Interfaces.ICompiledTemplate
     {
         private readonly HandlebarsTemplate<object, object> _compiledTemplate;
 
@@ -231,7 +226,24 @@ namespace EzDbCodeGen.TemplateEngine
         }
 
         /// <summary>
-        /// Executes the compiled template with the given data.
+        /// Renders the template with the provided data.
+        /// </summary>
+        /// <param name="data">Data to use in rendering</param>
+        /// <returns>The rendered template</returns>
+        public string Render(object data)
+        {
+            try
+            {
+                return _compiledTemplate(data);
+            }
+            catch (Exception ex)
+            {
+                throw new TemplateRenderingException("Error executing template", ex);
+            }
+        }
+
+        /// <summary>
+        /// Executes the template with the provided data.
         /// </summary>
         /// <param name="data">The data to use when executing the template.</param>
         /// <returns>The result of the template execution.</returns>

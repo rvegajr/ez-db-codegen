@@ -34,4 +34,12 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EzDbCodeGen.Core\EzDbCodeGen.Core.csproj" />
+    <ProjectReference Include="..\..\src\EzDbCodeGen.Cli\EzDbCodeGen.Cli.csproj" />
+    <ProjectReference Include="..\..\src\EzDbCodeGen.TypeMapping\EzDbCodeGen.TypeMapping.csproj" />
+    <ProjectReference Include="..\..\src\EzDbCodeGen.Schema\EzDbCodeGen.Schema.csproj" />
+    <ProjectReference Include="..\..\src\EzDbCodeGen.CodeGeneration\EzDbCodeGen.CodeGeneration.csproj" />
+  </ItemGroup>
+
 </Project>

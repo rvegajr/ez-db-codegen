@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using EzDbCodeGen.CodeGen.Interfaces;
+using EzDbCodeGen.Core.Interfaces.Logging;
 using EzDbCodeGen.TemplateEngine.Filters;
+using EzDbCodeGen.TemplateEngine.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
+using HandlebarsDotNet;
 
 namespace EzDbCodeGen.TemplateEngine;
 
@@ -40,8 +43,8 @@ public class TemplateProcessor : ITemplateProcessor
         BasePath = basePath ?? Directory.GetCurrentDirectory();
         
         // Add default filters
-        AddFilter(OutputTemplateFilters.LineEndingsFilter(LineEndingType.PlatformDefault));
-        AddFilter(OutputTemplateFilters.RemoveTrailingWhitespaceFilter());
+        AddOutputFilter(OutputTemplateFilters.LineEndingsFilter(LineEndingType.PlatformDefault));
+        AddOutputFilter(OutputTemplateFilters.RemoveTrailingWhitespaceFilter());
     }
 
     /// <summary>
@@ -56,7 +59,7 @@ public class TemplateProcessor : ITemplateProcessor
         }
         
         _filter.AddFilter(filter);
-        _logger.LogDebug($"Added filter: {filter.Name}");
+        _logger.LogDebug($"Added filter: {filter.GetType().Name}");
     }
     
     /// <summary>
@@ -84,13 +87,6 @@ public class TemplateProcessor : ITemplateProcessor
 
         try
         {
-            // Check if the template should be processed
-            if (!_filter.ShouldProcessTemplate(templatePath, dataModel))
-            {
-                _logger.LogDebug($"Template {templatePath} was filtered out - skipping processing");
-                return string.Empty;
-            }
-            
             _logger.LogDebug($"Processing template file: {templatePath}");
             
             // Resolve the template path
@@ -107,15 +103,12 @@ public class TemplateProcessor : ITemplateProcessor
             // Process the template content
             string result = ProcessTemplateContent(templateContent, dataModel);
             
-            // Apply output filters
-            result = _filter.ApplyOutputFilters(result, templatePath);
-            
             return result;
         }
-        catch (Exception ex) when (!(ex is TemplateProcessingException))
+        catch (Exception ex)
         {
-            _logger.LogError($"Error processing template file {templatePath}: {ex.Message}");
-            throw new TemplateProcessingException($"Error processing template file {templatePath}", ex);
+            _logger.LogError($"Error processing template {templatePath}: {ex.Message}");
+            throw new TemplateProcessingException($"Error processing template {templatePath}", ex);
         }
     }
 
@@ -131,16 +124,28 @@ public class TemplateProcessor : ITemplateProcessor
         {
             _logger.LogDebug("Processing template content");
             
-            // Compile and execute the template
-            var compiledTemplate = TemplateEngine.Compile(templateContent);
-            var result = TemplateEngine.Execute(compiledTemplate, dataModel);
+            // Apply input filters
+            var filteredTemplate = templateContent;
             
-            // Apply output filters (with null template name since this is raw content)
-            result = _filter.ApplyOutputFilters(result, null);
+            // Check if the template has a layout
+            string layoutPath = null;
+            
+            // Compile and execute the template
+            var compiledTemplate = TemplateEngine.Compile(filteredTemplate);
+            string result = TemplateEngine.Execute(compiledTemplate, dataModel);
+            
+            // Apply output filters
+            result = _filter.ApplyOutputFilters(result, "template");
+            
+            // Process layout if specified
+            if (!string.IsNullOrEmpty(layoutPath))
+            {
+                result = ProcessLayout(layoutPath, dataModel, result);
+            }
             
             return result;
         }
-        catch (Exception ex) when (!(ex is TemplateProcessingException))
+        catch (Exception ex)
         {
             _logger.LogError($"Error processing template content: {ex.Message}");
             throw new TemplateProcessingException("Error processing template content", ex);
@@ -148,50 +153,44 @@ public class TemplateProcessor : ITemplateProcessor
     }
 
     /// <inheritdoc/>
-    public string ProcessLayout(string layoutTemplatePath, string bodyContent, object dataModel)
+    public string ProcessLayout(string layoutPath, object dataModel, string bodyContent)
     {
-        if (string.IsNullOrEmpty(layoutTemplatePath))
+        if (string.IsNullOrEmpty(layoutPath))
         {
-            throw new ArgumentNullException(nameof(layoutTemplatePath));
+            throw new ArgumentNullException(nameof(layoutPath));
         }
 
         try
         {
-            // Check if the layout template should be processed
-            if (!_filter.ShouldProcessTemplate(layoutTemplatePath, dataModel))
-            {
-                _logger.LogDebug($"Layout template {layoutTemplatePath} was filtered out - using body content directly");
-                return bodyContent;
-            }
+            _logger.LogDebug($"Processing layout: {layoutPath}");
             
-            _logger.LogDebug($"Processing layout template: {layoutTemplatePath}");
-            
-            // Resolve the layout template path
-            string fullPath = ResolveTemplatePath(layoutTemplatePath);
+            // Resolve the layout path
+            string fullPath = ResolveTemplatePath(layoutPath);
             
             if (!File.Exists(fullPath))
             {
-                throw new FileNotFoundException($"Layout template file not found: {fullPath}", fullPath);
+                throw new FileNotFoundException($"Layout file not found: {fullPath}", fullPath);
             }
             
-            // Read the layout template content
+            // Read the layout content
             string layoutContent = File.ReadAllText(fullPath);
             
-            // Add the body content to the data model
-            var layoutDataModel = new LayoutDataModel(dataModel, bodyContent);
+            // Create a layout data model that includes the original model and the body content
+            var layoutModel = new LayoutDataModel(dataModel, bodyContent);
             
-            // Process the layout template with the body content
-            string result = ProcessTemplateContent(layoutContent, layoutDataModel);
+            // Compile and execute the layout template
+            var compiledTemplate = TemplateEngine.Compile(layoutContent);
+            string result = TemplateEngine.Execute(compiledTemplate, layoutModel);
             
             // Apply output filters
-            result = _filter.ApplyOutputFilters(result, layoutTemplatePath);
+            result = _filter.ApplyOutputFilters(result, "layout");
             
             return result;
         }
-        catch (Exception ex) when (!(ex is TemplateProcessingException))
+        catch (Exception ex)
         {
-            _logger.LogError($"Error processing layout template {layoutTemplatePath}: {ex.Message}");
-            throw new TemplateProcessingException($"Error processing layout template {layoutTemplatePath}", ex);
+            _logger.LogError($"Error processing layout {layoutPath}: {ex.Message}");
+            throw new TemplateProcessingException($"Error processing layout {layoutPath}", ex);
         }
     }
 
@@ -211,75 +210,62 @@ public class TemplateProcessor : ITemplateProcessor
         try
         {
             _logger.LogDebug($"Registering helper: {name}");
-            TemplateEngine.RegisterHelper(name, helper);
+            TemplateEngine.RegisterHelper(name, (Action<HandlebarsDotNet.EncodedTextWriter, HandlebarsDotNet.Context, HandlebarsDotNet.Arguments>)helper);
         }
         catch (Exception ex)
         {
             _logger.LogError($"Error registering helper {name}: {ex.Message}");
-            throw new HelperRegistrationException($"Error registering helper {name}", ex);
+            throw new TemplateProcessingException($"Error registering helper {name}", ex);
         }
     }
-
+    
     /// <inheritdoc/>
-    public void RegisterBlockHelper(string name, Delegate helper)
+    public void RegisterBlockHelper(string name, Delegate blockHelper)
     {
         if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentNullException(nameof(name));
         }
 
-        if (helper == null)
+        if (blockHelper == null)
         {
-            throw new ArgumentNullException(nameof(helper));
+            throw new ArgumentNullException(nameof(blockHelper));
         }
 
         try
         {
             _logger.LogDebug($"Registering block helper: {name}");
-            TemplateEngine.RegisterBlockHelper(name, helper);
+            TemplateEngine.RegisterBlockHelper(name, (Action<HandlebarsDotNet.EncodedTextWriter, HandlebarsDotNet.BlockHelperOptions, HandlebarsDotNet.Context, HandlebarsDotNet.Arguments>)blockHelper);
         }
         catch (Exception ex)
         {
             _logger.LogError($"Error registering block helper {name}: {ex.Message}");
-            throw new HelperRegistrationException($"Error registering block helper {name}", ex);
+            throw new TemplateProcessingException($"Error registering block helper {name}", ex);
         }
     }
 
     /// <inheritdoc/>
-    public void RegisterPartial(string name, string templatePath)
+    public void RegisterPartial(string name, string partialContent)
     {
         if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentNullException(nameof(name));
         }
 
-        if (string.IsNullOrEmpty(templatePath))
+        if (string.IsNullOrEmpty(partialContent))
         {
-            throw new ArgumentNullException(nameof(templatePath));
+            throw new ArgumentNullException(nameof(partialContent));
         }
 
         try
         {
-            _logger.LogDebug($"Registering partial: {name} from {templatePath}");
-            
-            // Resolve the template path
-            string fullPath = ResolveTemplatePath(templatePath);
-            
-            if (!File.Exists(fullPath))
-            {
-                throw new FileNotFoundException($"Partial template file not found: {fullPath}", fullPath);
-            }
-            
-            // Read the partial template content
-            string partialContent = File.ReadAllText(fullPath);
-            
-            // Register the partial with the template engine
+            _logger.LogDebug($"Registering partial: {name}");
             TemplateEngine.RegisterPartial(name, partialContent);
         }
         catch (Exception ex)
         {
             _logger.LogError($"Error registering partial {name}: {ex.Message}");
-            throw new PartialRegistrationException($"Error registering partial {name}", ex);
+            throw new TemplateProcessingException($"Error registering partial {name}", ex);
         }
     }
     
@@ -319,29 +305,87 @@ public class TemplateProcessor : ITemplateProcessor
             Body = bodyContent;
         }
     }
-}
-
-/// <summary>
-/// Exception thrown when an error occurs during template processing.
-/// </summary>
-public class TemplateProcessingException : Exception
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TemplateProcessingException"/> class.
-    /// </summary>
-    /// <param name="message">The exception message.</param>
-    public TemplateProcessingException(string message) 
-        : base(message)
+    
+    /// <inheritdoc/>
+    public string Process(string templateContent, object dataModel)
     {
+        return ProcessTemplateContent(templateContent, dataModel);
     }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TemplateProcessingException"/> class.
-    /// </summary>
-    /// <param name="message">The exception message.</param>
-    /// <param name="innerException">The inner exception.</param>
-    public TemplateProcessingException(string message, Exception innerException) 
-        : base(message, innerException)
+    
+    /// <inheritdoc/>
+    public string ProcessFile(string templatePath, object dataModel)
     {
+        return ProcessTemplate(templatePath, dataModel);
+    }
+    
+    /// <inheritdoc/>
+    public string ProcessFile(string templatePath, string outputPath, object dataModel)
+    {
+        var result = ProcessTemplate(templatePath, dataModel);
+        
+        if (!string.IsNullOrEmpty(result) && !string.IsNullOrEmpty(outputPath))
+        {
+            var directory = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
+            File.WriteAllText(outputPath, result);
+            _logger.LogDebug($"Wrote output to: {outputPath}");
+        }
+        
+        return result;
+    }
+    
+    /// <inheritdoc/>
+    public System.Collections.Generic.IDictionary<string, string> ProcessFiles(System.Collections.Generic.IEnumerable<string> templatePaths, object dataModel)
+    {
+        if (templatePaths == null)
+        {
+            throw new ArgumentNullException(nameof(templatePaths));
+        }
+        
+        var results = new System.Collections.Generic.Dictionary<string, string>();
+        
+        foreach (var templatePath in templatePaths)
+        {
+            var result = ProcessTemplate(templatePath, dataModel);
+            results[templatePath] = result;
+        }
+        
+        return results;
+    }
+    
+    /// <inheritdoc/>
+    public System.Collections.Generic.IDictionary<string, string> ProcessFiles(System.Collections.Generic.IEnumerable<string> templatePaths, string outputDirectory, object dataModel)
+    {
+        if (templatePaths == null)
+        {
+            throw new ArgumentNullException(nameof(templatePaths));
+        }
+        
+        if (string.IsNullOrEmpty(outputDirectory))
+        {
+            throw new ArgumentNullException(nameof(outputDirectory));
+        }
+        
+        var results = new System.Collections.Generic.Dictionary<string, string>();
+        
+        if (!Directory.Exists(outputDirectory))
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+        
+        foreach (var templatePath in templatePaths)
+        {
+            var fileName = Path.GetFileName(templatePath);
+            var outputPath = Path.Combine(outputDirectory, fileName);
+            
+            var result = ProcessFile(templatePath, outputPath, dataModel);
+            results[templatePath] = result;
+        }
+        
+        return results;
     }
 }

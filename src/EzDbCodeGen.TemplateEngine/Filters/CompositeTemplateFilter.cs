@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using EzDbCodeGen.CodeGen.Interfaces;
+using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
 
 namespace EzDbCodeGen.TemplateEngine.Filters;
 
@@ -119,12 +119,41 @@ public class CompositeTemplateFilter : ITemplateFilter
     }
 
     /// <inheritdoc/>
+    public string Filter(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+        
+        // Apply all template filters
+        foreach (var filter in _templateFilters)
+        {
+            input = filter.Filter(input);
+        }
+        
+        // Apply all output filters
+        foreach (var filter in _outputFilters)
+        {
+            input = filter.Filter(input);
+        }
+        
+        return input;
+    }
+
+    /// <summary>
+    /// Determines if a template should be processed.
+    /// </summary>
+    /// <param name="templateName">The name of the template.</param>
+    /// <param name="model">The data model.</param>
+    /// <returns>True if the template should be processed; otherwise, false.</returns>
     public bool ShouldProcessTemplate(string templateName, object? model)
     {
         // If any filter says no, then don't process
         foreach (var filter in _templateFilters)
         {
-            if (!filter.ShouldProcessTemplate(templateName, model))
+            if (filter is ITemplateProcessingFilter processingFilter && 
+                !processingFilter.ShouldProcessTemplate(templateName, model))
             {
                 return false;
             }
@@ -133,13 +162,19 @@ public class CompositeTemplateFilter : ITemplateFilter
         return true;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Determines if a model should be processed.
+    /// </summary>
+    /// <param name="model">The data model.</param>
+    /// <param name="templateName">The name of the template.</param>
+    /// <returns>True if the model should be processed; otherwise, false.</returns>
     public bool ShouldProcessModel(object? model, string templateName)
     {
         // If any filter says no, then don't process
         foreach (var filter in _templateFilters)
         {
-            if (!filter.ShouldProcessModel(model, templateName))
+            if (filter is ITemplateProcessingFilter processingFilter && 
+                !processingFilter.ShouldProcessModel(model, templateName))
             {
                 return false;
             }
@@ -148,13 +183,20 @@ public class CompositeTemplateFilter : ITemplateFilter
         return true;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Determines if a property should be included.
+    /// </summary>
+    /// <param name="propertyName">The name of the property.</param>
+    /// <param name="model">The data model.</param>
+    /// <param name="templateName">The name of the template.</param>
+    /// <returns>True if the property should be included; otherwise, false.</returns>
     public bool ShouldIncludeProperty(string propertyName, object? model, string templateName)
     {
         // If any filter says no, then don't include
         foreach (var filter in _templateFilters)
         {
-            if (!filter.ShouldIncludeProperty(propertyName, model, templateName))
+            if (filter is ITemplateProcessingFilter processingFilter && 
+                !processingFilter.ShouldIncludeProperty(propertyName, model, templateName))
             {
                 return false;
             }

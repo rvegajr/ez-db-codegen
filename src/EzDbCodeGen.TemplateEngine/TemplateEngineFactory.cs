@@ -1,40 +1,37 @@
 using System;
 using System.Collections.Generic;
-using EzDbCodeGen.CodeGen.Interfaces;
-using EzDbCodeGen.Core.Logging;
-using EzDbCodeGen.Core.TemplateEngine;
 
 namespace EzDbCodeGen.TemplateEngine
 {
     /// <summary>
     /// Factory for creating template engines.
     /// </summary>
-    public class TemplateEngineFactory : ITemplateEngineFactory
+    public class TemplateEngineFactory : EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngineFactory
     {
-        private readonly ICodeGenerationLogger _logger;
-        private readonly Dictionary<TemplateEngineType, Func<TemplateEngineOptions, ITemplateEngine>> _engineFactories;
+        private readonly EzDbCodeGen.Core.Interfaces.Logging.ICodeGenerationLogger _logger;
+        private readonly Dictionary<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType, Func<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions, EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine>> _engineFactories;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TemplateEngineFactory"/> class.
         /// </summary>
         /// <param name="logger">The logger to use.</param>
-        public TemplateEngineFactory(ICodeGenerationLogger logger)
+        public TemplateEngineFactory(EzDbCodeGen.Core.Interfaces.Logging.ICodeGenerationLogger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _engineFactories = new Dictionary<TemplateEngineType, Func<TemplateEngineOptions, ITemplateEngine>>();
+            _engineFactories = new Dictionary<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType, Func<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions, EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine>>();
             
             // Register standard engines
             RegisterStandardEngines();
         }
 
         /// <inheritdoc/>
-        public ITemplateEngine CreateEngine(TemplateEngineType engineType)
+        public EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine CreateEngine(EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType engineType)
         {
-            return CreateEngine(engineType, new TemplateEngineOptions());
+            return CreateEngine(engineType, new EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions());
         }
         
         /// <inheritdoc/>
-        public ITemplateEngine CreateEngine(TemplateEngineType engineType, TemplateEngineOptions options)
+        public EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine CreateEngine(EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType engineType, EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions options)
         {
             if (!_engineFactories.TryGetValue(engineType, out var factory))
             {
@@ -42,7 +39,7 @@ namespace EzDbCodeGen.TemplateEngine
             }
 
             // Create default options if none provided
-            options ??= new TemplateEngineOptions();
+            options ??= new EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions();
 
             try
             {
@@ -57,7 +54,7 @@ namespace EzDbCodeGen.TemplateEngine
         }
 
         /// <inheritdoc/>
-        public void RegisterEngineFactory(TemplateEngineType engineType, Func<TemplateEngineOptions, ITemplateEngine> factoryMethod)
+        public void RegisterEngineFactory(EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType engineType, Func<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineOptions, EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine> factoryMethod)
         {
             if (factoryMethod == null)
             {
@@ -67,23 +64,23 @@ namespace EzDbCodeGen.TemplateEngine
             _engineFactories[engineType] = factoryMethod;
             _logger.LogDebug($"Registered template engine: {engineType}");
         }
-
+        
         /// <inheritdoc/>
-        public bool IsEngineRegistered(TemplateEngineType engineType)
+        public bool IsEngineRegistered(EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType engineType)
         {
             return _engineFactories.ContainsKey(engineType);
         }
-
+        
         /// <inheritdoc/>
-        public IReadOnlyList<TemplateEngineType> GetAvailableEngines()
+        public IReadOnlyList<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType> GetAvailableEngines()
         {
-            return new List<TemplateEngineType>(_engineFactories.Keys);
+            return new List<EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType>(_engineFactories.Keys);
         }
 
         private void RegisterStandardEngines()
         {
             // Register Handlebars engine
-            RegisterEngineFactory(TemplateEngineType.Handlebars, options => 
+            RegisterEngineFactory(EzDbCodeGen.TemplateEngine.Interfaces.TemplateEngineType.Handlebars, options => 
                 new HandlebarsTemplateEngine(_logger, options));
             
             // Additional engines can be registered here as they are implemented
