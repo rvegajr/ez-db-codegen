@@ -293,3 +293,112 @@
 ```
 
 This comprehensive checklist ensures that every aspect of the EzDbCodeGen NG implementation is covered using strict test-driven development.
+
+## Interface Consolidation & Refactoring Plan
+
+### Current Issues Analysis
+
+Our TDD approach has successfully demonstrated EzDbCodeGen's superiority over EF Core, but the implementation has revealed several interface compatibility issues that need to be addressed. After thorough analysis, we've identified the following categories of issues:
+
+1. **Interface Duplication & Ambiguity**
+   - Duplicate interfaces exist across multiple assemblies (e.g., `ITemplateFilter` exists in both `EzDbCodeGen.TemplateEngine.Interfaces` and `EzDbCodeGen.CodeGen.Interfaces`) 
+   - This creates ambiguous references causing compilation failures
+   - Inconsistent namespace hierarchies complicate resolution
+
+2. **Missing Implementation Conversions**
+   - Implementation classes don't properly implement their corresponding interfaces
+   - No implicit conversion exists between implementation types and interface types
+   - Various factory classes can't be registered correctly in the DI container
+
+3. **Schema-Related Interface Issues**
+   - Multiple implementations of similar schema-related interfaces
+   - Inconsistent naming and structure between `EzDbSchema.Core.Extensions` and `EzDbSchema.Core.Extentions`
+   - `ISchemaFilter` ambiguity between different namespace hierarchies
+
+4. **Factory Registration Problems**
+   - `TemplateProcessorFactory` doesn't implement `ITemplateProcessorFactory`
+   - `DataTypeMapFactory` doesn't implement `IDataTypeMapFactory`
+   - `RelationshipAnalyzer` doesn't implement `IRelationshipAnalyzer`
+
+5. **Missing Types**
+   - `EzDbCodeGen.CodeGen.SchemaModelAdapter` not found
+   - `EzDbCodeGen.CodeGen.CodeGenerator` not found
+   - `IDataTypeMapFactory` missing entirely
+
+6. **Type Conversion Issues with External Libraries**
+   - Conversion issues between `HandlebarsDotNet.IHandlebars` and `EzDbCodeGen.TemplateEngine.Interfaces.ITemplateEngine`
+   - Incorrectly typed helper registrations
+
+### Comprehensive Resolution Plan
+
+#### Phase 1: Interface Cleanup & Consolidation
+1. **Create Unified Interface Project**
+   - Implement `EzDbCodeGen.Common.Interfaces` as the single source of truth for all interfaces
+   - Migrate all interfaces to this project with proper namespace hierarchy
+   - Ensure backward compatibility through interface inheritance where necessary
+
+2. **Remove Duplicate Interfaces**
+   - Identify all duplicated interfaces across projects
+   - Create mapping between old and new interface locations
+   - Update all implementations to reference the new unified interfaces
+
+3. **Create Interface Compatibility Layer**
+   - Implement adapter classes for backward compatibility
+   - Add extension methods to bridge API differences
+   - Ensure all existing implementations can seamlessly work with new interfaces
+
+#### Phase 2: Implementation Alignment
+1. **Fix Implementation Classes**
+   - Update all implementation classes to properly implement their corresponding interfaces
+   - Add missing methods and properties required by interfaces
+   - Ensure proper inheritance hierarchies
+
+2. **Correct Factory Classes**
+   - Align factory implementations with their interfaces
+   - Implement missing factory interfaces where needed
+   - Update DI registration to use correct interface types
+
+3. **Add Missing Types**
+   - Implement `SchemaModelAdapter` in the correct namespace
+   - Create proper `CodeGenerator` class
+   - Define and implement `IDataTypeMapFactory`
+
+#### Phase 3: External Library Integration
+1. **Create Proper Wrappers**
+   - Implement wrappers for HandlebarsDotNet to satisfy our interfaces
+   - Create adapter classes for seamless conversion between types
+   - Update registration code to use correct wrapper types
+
+2. **Fix Helper Registration**
+   - Update helper registration to use correct interface types
+   - Implement proper type conversion where needed
+   - Create extension methods for simplified registration
+
+#### Phase 4: Dependency Injection Overhaul
+1. **Clean Up Service Registration**
+   - Fix `AddTransient` calls to include both service and implementation types
+   - Remove ambiguous references in DI registration
+   - Add proper type conversion where needed
+
+2. **Update Factory Registration**
+   - Ensure all factories are properly registered
+   - Fix constructor injection for factories
+   - Add proper lifetime management for factories
+
+#### Phase 5: Testing & Validation
+1. **Create Interface Migration Tests**
+   - Verify all interfaces are properly implemented
+   - Test backward compatibility with existing code
+   - Ensure no regressions in functionality
+
+2. **Integration Testing**
+   - Test end-to-end functionality with new interface hierarchy
+   - Verify all components work together correctly
+   - Ensure all superiority tests still pass with new implementation
+
+3. **Performance Validation**
+   - Verify no performance regressions from interface changes
+   - Ensure memory usage remains efficient
+   - Validate registration overhead is minimal
+
+This comprehensive plan will resolve all the identified issues while maintaining our commitment to TDD and ensuring EzDbCodeGen continues to outperform EF Core Power Tools in all key areas.

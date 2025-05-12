@@ -1,22 +1,15 @@
 using System;
-using EzDbCodeGen.CodeGen;
-using EzDbCodeGen.CodeGen.Interfaces;
-using EzDbCodeGen.Schema.Analysis;
-using EzDbCodeGen.Schema.Filters;
-using EzDbCodeGen.Schema.Interfaces;
-using EzDbCodeGen.Schema.Interfaces.Analysis;
-using EzDbCodeGen.Schema.Interfaces.Filters;
-using EzDbCodeGen.Schema.Interfaces.Providers;
-using EzDbCodeGen.Schema.Providers;
-using EzDbCodeGen.TemplateEngine;
-using EzDbCodeGen.TemplateEngine.Filters;
-using EzDbCodeGen.TemplateEngine.Helpers;
-using EzDbCodeGen.TemplateEngine.Interfaces;
-using EzDbCodeGen.TemplateEngine.Interfaces.Filters;
-using EzDbCodeGen.TemplateEngine.Interfaces.Helpers;
-using EzDbCodeGen.TypeMapping;
-using EzDbCodeGen.TypeMapping.Interfaces;
-using HandlebarsDotNet;
+using EzDbCodeGen.Core.Schema.Models;
+using EzDbCodeGen.Core.Schema.RelationshipDetection;
+using EzDbCodeGen.Core.Schema.SchemaProviders;
+using EzDbCodeGen.Core.TemplateEngine;
+using EzDbCodeGen.Core.TemplateEngine.Helpers;
+using EzDbCodeGen.Core.Utilities;
+using EzDbCodeGen.Interfaces.CodeGen;
+using EzDbCodeGen.Interfaces.Schema;
+using EzDbCodeGen.Interfaces.TemplateEngine;
+using EzDbCodeGen.Interfaces.TemplateEngine.Helpers;
+using EzDbCodeGen.Interfaces.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -39,35 +32,31 @@ public static class ServiceCollectionExtensions
             throw new ArgumentNullException(nameof(services));
         }
 
-        // Register database schema providers
-        services.AddSingleton<EzDbCodeGen.Schema.Interfaces.IDatabaseSchemaProviderFactory, EzDbCodeGen.Schema.Providers.DatabaseSchemaProviderFactory>();
-        services.AddTransient<EzDbCodeGen.Schema.Interfaces.Providers.ISqlServerSchemaProvider, EzDbCodeGen.Schema.Providers.SqlServerSchemaProvider>();
+        // Register essential utility services
+        services.AddSingleton<IStringUtility, StringUtility>();
+        services.AddSingleton<IFileUtility, FileUtility>();
+
+        // Register schema model services
+        services.AddTransient<IDatabaseSchemaProvider, SqlServerSchemaProvider>();
+        
+        // Register relationship detection strategies
+        services.AddTransient<IRelationshipDetectionStrategy, ForeignKeyRelationshipStrategy>();
+        services.AddTransient<IRelationshipDetectionStrategy, ManyToManyRelationshipStrategy>();
+        services.AddTransient<IRelationshipDetectionStrategy, InheritanceRelationshipStrategy>();
+        
+        // Register relationship detector
+        services.AddTransient<IRelationshipDetector, RelationshipDetector>();
 
         // Register template engine services
-        services.AddSingleton<ITemplateEngine>(sp => HandlebarsDotNet.Handlebars.Create());
-        services.AddTransient<ITemplateProcessor, EzDbCodeGen.TemplateEngine.TemplateProcessor>();
-        services.AddTransient<ITemplateProcessorFactory, EzDbCodeGen.TemplateEngine.TemplateProcessorFactory>();
+        services.AddTransient<ITemplateProcessor, TemplateProcessor>();
         
-        // Register filters
-        services.AddTransient<ITemplateFilter, EzDbCodeGen.TemplateEngine.Filters.OutputTemplateFilter>();
-        services.AddTransient<ISchemaFilter, EzDbCodeGen.Schema.Filters.PatternSchemaFilter>();
-        
-        // Register type mapping services
-        services.AddSingleton<IDataTypeMapFactory, EzDbCodeGen.TypeMapping.DataTypeMapFactory>();
-        
-        // Register schema analysis services
-        services.AddTransient<IRelationshipAnalyzer, EzDbCodeGen.Schema.Analysis.RelationshipAnalyzer>();
-        
-        // Register model adapter services
-        services.AddTransient<ISchemaModelAdapter, EzDbCodeGen.CodeGen.SchemaModelAdapter>();
-        
-        // Register code generation services
-        services.AddTransient<ICodeGenerator, EzDbCodeGen.CodeGen.CodeGenerator>();
-
         // Register template engine helpers
-        services.AddSingleton<ISchemaHelper, EzDbCodeGen.TemplateEngine.Helpers.HandlebarsSchemaHelpers>();
-        services.AddSingleton<IRelationshipHelper, EzDbCodeGen.TemplateEngine.Helpers.HandlebarsRelationshipHelpers>();
-        services.AddSingleton<ICodeFormatHelper, EzDbCodeGen.TemplateEngine.Helpers.HandlebarsCodeFormatHelpers>();
+        services.AddTransient<ISchemaHelper, SchemaHelper>();
+        services.AddTransient<IRelationshipHelper, RelationshipHelper>();
+        services.AddTransient<ICodeFormatHelper, CodeFormatHelper>();
+
+        // Register code generation services
+        services.AddTransient<ICodeGenerator, CodeGenerator>();
 
         return services;
     }
